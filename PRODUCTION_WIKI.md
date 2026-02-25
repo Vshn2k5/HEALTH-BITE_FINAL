@@ -60,6 +60,10 @@ mindmap
 For a complete interactive visualization of the codebase, you can use **GitDiagram**:
 👉 [**View on GitDiagram.com**](https://gitdiagram.com/Vshn2k5/HEALTH-BITE_FINAL)
 
+### 🤖 Gitingest
+To ingest the entire codebase into an AI or LLM for analysis, use **Gitingest**:
+👉 [**View on Gitingest.com**](https://gitingest.com/Vshn2k5/HEALTH-BITE_FINAL)
+
 ---
 
 ## ⚙️ Backend Workflow
