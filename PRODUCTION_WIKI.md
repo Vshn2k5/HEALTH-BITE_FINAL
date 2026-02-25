@@ -14,13 +14,51 @@ The Smart Canteen is built as a **monolithic full-stack application** with a cle
 
 ```mermaid
 graph TD
-    User((User/Admin)) -->|Requests| FastApi[FastAPI Server]
-    FastApi -->|Serves| Static[Static HTML/JS/CSS]
-    FastApi -->|API Calls| Auth[Auth System]
-    FastApi -->|API Calls| Logic[Business Logic/Routes]
-    Logic -->|SQL| DB[(SQLite Database)]
-    Logic -->|AI| Chat[AI Chatbot/Monitor]
+    User((User/Admin)) -->|Web Interface| FastApi[FastAPI Server]
+    subgraph "Backend (FastAPI)"
+        FastApi -->|Serves| Static[Static HTML/JS/CSS]
+        FastApi -->|API Calls| Auth[Auth System]
+        FastApi -->|API Calls| Logic[Business Logic/Routes]
+        Logic -->|SQL| DB[(SQLite Database)]
+        Logic -->|AI Models| AI[Chatbot/Monitor]
+    end
+    subgraph "Frontend"
+        Static -->|Auth| Dashboard[User/Admin Portals]
+    end
 ```
+
+---
+
+## 📂 Project Structure
+
+Visualizing the repository's organization:
+
+```mermaid
+mindmap
+  root((Smart Canteen))
+    Scripts
+      start_app.bat
+      enable_autostart.vbs
+    Backend
+      app.py
+      auth.py
+      database.py/models.py
+      routes_subfolders
+      AI_models
+    Frontend
+      index.html
+      user_pages
+      admin_folder
+        admin_pages
+        admin_assets
+    Documentation
+      HOW_TO_RUN.md
+      PRODUCTION_WIKI.md
+```
+
+### 📊 GitDiagram
+For a complete interactive visualization of the codebase, you can use **GitDiagram**:
+👉 [**View on GitDiagram.com**](https://gitdiagram.com/Vshn2k5/HEALTH-BITE_FINAL)
 
 ---
 
