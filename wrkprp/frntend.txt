@@ -1,0 +1,306 @@
+# 🏗️ Admin System — Complete Structure & Page-by-Page Creation Plan
+
+---
+
+## 📁 Complete Folder Structure
+
+```
+admin/
+├── pages/
+│    ├── dashboard.html
+│    ├── food-management.html
+│    ├── inventory.html
+│    ├── orders.html
+│    ├── users.html
+│    ├── analytics.html
+│    ├── ai-monitoring.html
+│    ├── reports.html
+│    └── audit-logs.html
+├── assets/
+│    ├── css/
+│    │    ├── admin.css          ← global styles, tokens, glassmorphism
+│    │    └── components.css     ← cards, tables, modals, toasts
+│    ├── js/
+│    │    ├── admin.js           ← sidebar, auth guard, role check
+│    │    ├── components.js      ← reusable toast, modal, loader
+│    │    └── charts.js          ← Chart.js base config
+│    └── icons/                  ← SVG icon set
+├── api/
+│    ├── base.js                 ← axios/fetch instance + token injection
+│    ├── adminApi.js             ← overview, audit
+│    ├── foodApi.js              ← food CRUD
+│    ├── inventoryApi.js
+│    ├── orderApi.js
+│    ├── userApi.js
+│    ├── analyticsApi.js
+│    ├── aiApi.js
+│    └── reportsApi.js
+└── auth/
+     └── authGuard.js            ← redirect if not logged in / wrong role
+```
+
+---
+
+## 🗂️ Page-by-Page Creation Order & Blueprint
+
+Build in this exact order — each page builds on the last.
+
+---
+
+### ✅ PHASE 1 — Foundation (Do this before any page)
+
+Before touching any HTML, set up:
+
+**`admin.css`** — Design tokens
+```css
+--primary: #6C63FF;
+--bg: #0f0f1a;
+--glass: rgba(255,255,255,0.05);
+--border: rgba(255,255,255,0.1);
+--success: #00e676;
+--danger: #ff5252;
+```
+
+**`base.js`** — API layer base
+```js
+const API = axios.create({ baseURL: '/api/admin' });
+API.interceptors.request.use(config => {
+  config.headers.Authorization = `Bearer ${localStorage.getItem('token')}`;
+  return config;
+});
+```
+
+**`admin.js`** — Sidebar + auth guard (runs on every page)
+
+**`components.js`** — Toast, confirm modal, loader spinner (reused everywhere)
+
+---
+
+### 📄 PAGE 1 — Dashboard (`dashboard.html`)
+
+**Build order inside the page:**
+
+1. Sidebar (include via JS or iframe)
+2. Top header bar (admin name, role badge, logout)
+3. Stats row — 4 KPI cards:
+   - Total Revenue
+   - Today's Orders
+   - Active Users
+   - Low Stock Alerts (clickable → inventory page)
+4. Charts row:
+   - Left: Risk Distribution (Doughnut chart)
+   - Right: Sales This Week (Bar chart)
+5. Bottom: Top 5 Selling Items table
+
+**API calls:**
+```
+GET /api/admin/overview  →  populates all cards + charts
+```
+
+**Key interactions:** Low stock badge auto-highlights red, clicking it navigates to inventory.
+
+---
+
+### 📄 PAGE 2 — Food Management (`food-management.html`)
+
+**Build order:**
+
+1. Header + "Add Food" button (opens modal)
+2. Search bar + Category filter dropdown
+3. Food table:
+
+| Name | Category | Calories | Sugar | Protein | Stock | Status | Actions |
+|------|----------|----------|-------|---------|-------|--------|---------|
+
+4. Add/Edit modal (form with all fields + image URL input)
+5. Delete confirmation modal
+6. Availability toggle (switches status in-place)
+
+**API calls:**
+```
+GET    /api/admin/foods
+POST   /api/admin/foods
+PUT    /api/admin/foods/:id
+DELETE /api/admin/foods/:id
+```
+
+**Key rule:** Delete must trigger confirmation modal → on confirm, removes from recommendation engine too.
+
+---
+
+### 📄 PAGE 3 — Inventory (`inventory.html`)
+
+**Build order:**
+
+1. Summary strip: Total Items / Low Stock Count / Out of Stock Count
+2. Stock table:
+
+| Food Name | Current Stock | Reorder Level | Status Badge | Update |
+
+3. Inline edit — click quantity → editable input → save button appears
+4. Status badge logic:
+   - `>= reorder` → 🟢 Healthy
+   - `< reorder` → 🟡 Low
+   - `0` → 🔴 Out of Stock
+
+**API calls:**
+```
+GET /api/admin/inventory
+PUT /api/admin/inventory/:food_id
+```
+
+---
+
+### 📄 PAGE 4 — Orders (`orders.html`)
+
+**Build order:**
+
+1. Filter tabs: All / Pending / Completed / Cancelled
+2. Orders table:
+
+| Order ID | User | Items (summary) | Total | Status | Date | Action |
+
+3. Status dropdown inline (change Pending → Completed etc.)
+4. Expandable row → shows full item list
+
+**API calls:**
+```
+GET /api/admin/orders?status=pending
+PUT /api/admin/orders/:id/status
+```
+
+---
+
+### 📄 PAGE 5 — Users (`users.html`)
+
+**Build order:**
+
+1. Search + Role filter
+2. Users table:
+
+| Name | Email | Role | Health Risk | Status | Actions |
+
+3. View Health Summary modal (disease tags, risk score)
+4. Deactivate toggle (with confirmation)
+5. Role change dropdown (SUPER_ADMIN only — hide for others)
+
+**API calls:**
+```
+GET /api/admin/users
+PUT /api/admin/users/:id
+```
+
+**RBAC rule:** ANALYST sees this page read-only. MANAGER can deactivate. SUPER_ADMIN can change roles.
+
+---
+
+### 📄 PAGE 6 — Analytics (`analytics.html`)
+
+**Build order:**
+
+1. Date range picker (filter all charts)
+2. Row 1 charts:
+   - Sales Over Time (Line chart)
+   - Most Popular Foods (Horizontal Bar)
+3. Row 2 charts:
+   - Disease Distribution across users (Pie)
+   - Risk Level Trends over time (Area chart)
+4. Insight summary cards below charts (auto-generated text summaries)
+
+**API calls:**
+```
+GET /api/admin/analytics/sales?from=&to=
+GET /api/admin/analytics/users
+GET /api/admin/analytics/risk
+```
+
+---
+
+### 📄 PAGE 7 — AI Monitoring (`ai-monitoring.html`)
+
+**Build order:**
+
+1. Model Status card (Active / Degraded / Retraining)
+2. Key metrics row:
+   - Accuracy %
+   - Last Trained date
+   - Total Predictions made
+3. Feature Importance bar chart (what factors drive recommendations)
+4. Recommendation Logs table (user, recommended food, reason, timestamp)
+5. "Retrain Model" button → shows progress bar → shows result toast
+
+**API calls:**
+```
+GET  /api/admin/ai/status
+GET  /api/admin/ai/logs
+POST /api/admin/ai/retrain
+```
+
+---
+
+### 📄 PAGE 8 — Reports (`reports.html`)
+
+**Build order:**
+
+1. Report type cards (Sales, Health Trends, Inventory)
+2. Each card has: date range picker + Export CSV button + Preview table
+3. Preview loads top 10 rows before full export
+4. Download triggers file save
+
+**API calls:**
+```
+GET /api/admin/export/sales?from=&to=    → returns CSV blob
+GET /api/admin/export/users
+GET /api/admin/export/inventory
+```
+
+---
+
+### 📄 PAGE 9 — Audit Logs (`audit-logs.html`)
+
+**Build order:**
+
+1. Filter bar: by admin user, action type, date range
+2. Logs table:
+
+| Time | Admin | Action | Target | IP Address | Details |
+
+3. Expandable row → shows full payload snapshot (JSON viewer)
+4. Read-only — no edits allowed on this page
+
+**API calls:**
+```
+GET /api/admin/audit?admin_id=&action=&from=&to=
+```
+
+---
+
+## 🔁 Build Sequence Summary
+
+```
+Phase 1:  CSS tokens + base.js + admin.js + components.js   ← FOUNDATION
+Page 1:   Dashboard          ← proves API connection works
+Page 2:   Food Management    ← core CRUD, most complex
+Page 3:   Inventory          ← depends on food data
+Page 4:   Orders             ← independent, easy win
+Page 5:   Users              ← RBAC critical
+Page 6:   Analytics          ← needs pages 1-5 data to exist
+Page 7:   AI Monitoring      ← needs food + user data
+Page 8:   Reports            ← wraps everything
+Page 9:   Audit Logs         ← final layer, logs all above
+```
+
+---
+
+## ⚡ Cross-Page Rules (Apply Everywhere)
+
+Every single page must have these baked in before you call it done:
+
+- **Auth guard** — redirect to login if no valid JWT
+- **Role visibility** — hide buttons/pages based on role
+- **Loading skeleton** — shown while API fetches
+- **Error state** — shown if API fails (not a blank page)
+- **Success/fail toast** — every write operation
+- **Confirm modal** — every delete or destructive action
+- **Audit trigger** — every write operation calls audit log endpoint
+

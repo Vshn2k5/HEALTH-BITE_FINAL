@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Orders Management</title>
+
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)",
+                        "primary-dark": "var(--color-primary-dark, #0e9f15)",
+                        "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5",
+                        "surface-glass": "rgba(255, 255, 255, 0.7)",
+                        "text-main": "#1B261D",
+                        "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00",
+                        "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: {
+                        "glass": "0 8px 32px 0 rgba(17, 212, 27, 0.05)",
+                        "glass-hover": "0 12px 40px 0 rgba(17, 212, 27, 0.1)",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Layout Handler -->
+    <script src="../assets/js/layout.js"></script>
+
+    <style>
+        /* Background blobs */
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+        }
+
+        /* Shimmer */
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* Tab styling */
+        .tab-btn {
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: #11d41b;
+            border-bottom-color: #11d41b;
+            font-weight: 700;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #11d41b;
+            border-radius: 1px;
+        }
+
+        /* Expandable row */
+        .expand-row {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, opacity 0.25s ease;
+        }
+
+        .expand-row.open {
+            max-height: 800px;
+            opacity: 1;
+        }
+
+        /* Row fade-remove */
+        @keyframes fadeRemove {
+            0% {
+                opacity: 1;
+                transform: scaleY(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scaleY(0);
+                height: 0;
+                padding: 0;
+                margin: 0;
+            }
+        }
+
+        .fade-remove {
+            animation: fadeRemove 0.3s ease forwards;
+        }
+
+        /* Status dropdown */
+        .status-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            z-index: 50;
+        }
+
+        /* Micro toast */
+        @keyframes microFade {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Cancelled row */
+        .cancelled-row {
+            border-color: rgba(229, 57, 53, 0.1) !important;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <!-- BG Blobs -->
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+
+            <!-- Topbar Container -->
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <!-- Page Header -->
+                <header class="mb-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Orders Management</h2>
+                    <p class="text-text-muted text-lg mt-1">Track and manage customer orders in real-time.</p>
+                </header>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 1 — SUMMARY STRIP (4 cards)     -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Card 1: Total Orders 🧾 -->
+                    <div class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-blue-50 text-blue-600"><span
+                                    class="material-symbols-outlined">receipt_long</span></div>
+                            <span class="text-text-muted text-sm font-medium">🧾 Total Orders</span>
+                        </div>
+                        <p id="summaryTotal" class="text-3xl font-bold text-text-main shimmer h-9 w-16">&nbsp;</p>
+                    </div>
+
+                    <!-- Card 2: Pending ⏳ -->
+                    <div id="cardPending"
+                        class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all cursor-pointer">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-amber-50 text-amber-600"><span
+                                    class="material-symbols-outlined">hourglass_empty</span></div>
+                            <span class="text-text-muted text-sm font-medium">⏳ Pending</span>
+                        </div>
+                        <p id="summaryPending" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+
+                    <!-- Card 3: Completed ✅ -->
+                    <div id="cardCompleted"
+                        class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all cursor-pointer">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-600"><span
+                                    class="material-symbols-outlined">check_circle</span></div>
+                            <span class="text-text-muted text-sm font-medium">✅ Completed</span>
+                        </div>
+                        <p id="summaryCompleted" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+
+                    <!-- Card 4: Cancelled ✖️ -->
+                    <div id="cardCancelled"
+                        class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all cursor-pointer">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-red-50 text-red-600"><span
+                                    class="material-symbols-outlined">cancel</span></div>
+                            <span class="text-text-muted text-sm font-medium">✖️ Cancelled</span>
+                        </div>
+                        <p id="summaryCancelled" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 2 — FILTER TAB BAR               -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="glass-panel rounded-2xl shadow-glass mb-4 overflow-hidden">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-black/5 px-6" id="tabBar">
+                        <button
+                            class="tab-btn px-5 py-3.5 text-sm font-medium text-text-muted hover:text-primary transition-colors active"
+                            data-tab="all" onclick="switchTab('all')">
+                            All <span class="tab-count ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 font-bold"
+                                id="countAll">0</span>
+                        </button>
+                        <button
+                            class="tab-btn px-5 py-3.5 text-sm font-medium text-text-muted hover:text-primary transition-colors"
+                            data-tab="Pending" onclick="switchTab('Pending')">
+                            Pending <span
+                                class="tab-count ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold"
+                                id="countPending">0</span>
+                        </button>
+                        <button
+                            class="tab-btn px-5 py-3.5 text-sm font-medium text-text-muted hover:text-primary transition-colors"
+                            data-tab="Completed" onclick="switchTab('Completed')">
+                            Completed <span
+                                class="tab-count ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold"
+                                id="countCompleted">0</span>
+                        </button>
+                        <button
+                            class="tab-btn px-5 py-3.5 text-sm font-medium text-text-muted hover:text-primary transition-colors"
+                            data-tab="Cancelled" onclick="switchTab('Cancelled')">
+                            Cancelled <span
+                                class="tab-count ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold"
+                                id="countCancelled">0</span>
+                        </button>
+                    </div>
+                    <!-- Secondary filter row -->
+                    <div class="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-black/5 bg-white/20">
+                        <div class="flex items-center gap-3 ml-auto">
+                            <input id="dateFrom" type="date"
+                                class="px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main outline-none" />
+                            <span class="text-text-muted text-xs font-bold">to</span>
+                            <input id="dateTo" type="date"
+                                class="px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main outline-none" />
+                            <div class="relative">
+                                <span
+                                    class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">search</span>
+                                <input id="orderSearch" type="text"
+                                    class="pl-9 pr-4 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main placeholder-text-muted/70 outline-none w-52"
+                                    placeholder="Order ID or customer..." />
+                            </div>
+                            <button id="clearFiltersBtn"
+                                class="text-xs font-bold text-primary hover:underline hidden">Clear Filters</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 3 — ORDERS TABLE                  -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30">
+                                    <th class="px-4 py-4 w-8"></th>
+                                    <th class="px-4 py-4">Order ID</th>
+                                    <th class="px-4 py-4">Customer</th>
+                                    <th class="px-4 py-4">Items Summary</th>
+                                    <th class="px-4 py-4 text-right">Total</th>
+                                    <th class="px-4 py-4 text-center">Status</th>
+                                    <th class="px-4 py-4 text-right">Date & Time</th>
+                                    <th class="px-4 py-4 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <!-- JS renders rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Empty State -->
+                    <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+                        <div class="bg-primary/10 p-6 rounded-full mb-4">
+                            <span class="material-symbols-outlined text-4xl text-primary">inbox</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-text-main mb-2" id="emptyMsg">No orders found</h3>
+                        <p class="text-text-muted max-w-sm">Try adjusting your filters or switching tabs.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- STATUS CHANGE CONFIRMATION MODAL        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="statusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl p-8 w-full max-w-[380px] text-center shadow-2xl mx-4 transform transition-all scale-95 opacity-0"
+            id="statusModalContent" style="transition: transform 0.2s, opacity 0.2s;">
+            <!-- Icon -->
+            <div id="modalIcon" class="w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center text-3xl">
+            </div>
+            <!-- Title -->
+            <h3 id="modalTitle" class="text-xl font-bold text-text-main mb-2"></h3>
+            <!-- Body -->
+            <p id="modalBody" class="text-sm text-text-muted mb-6 leading-relaxed"></p>
+            <!-- Footer -->
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeStatusModal()"
+                    class="px-5 py-2.5 text-sm font-bold text-text-muted rounded-xl hover:bg-black/5 transition-colors">Go
+                    Back</button>
+                <button id="modalConfirmBtn" onclick="confirmStatusChange()"
+                    class="px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-lg flex items-center gap-2">
+                    <span id="confirmBtnText">Confirm</span>
+                    <span id="confirmSpinner"
+                        class="hidden animate-spin material-symbols-outlined text-[16px]">progress_activity</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Logic -->
+    <script src="../assets/js/admin-orders.js"></script>
+</body>
+
+</html>

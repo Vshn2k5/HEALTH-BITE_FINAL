@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Reports & Export</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)", "primary-dark": "var(--color-primary-dark, #0e9f15)", "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5", "surface-glass": "rgba(255,255,255,0.7)",
+                        "text-main": "#1B261D", "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00", "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: { "glass": "0 8px 32px 0 rgba(17,212,27,0.05)", "glass-hover": "0 12px 40px 0 rgba(17,212,27,0.1)" },
+                },
+            },
+        }
+    </script>
+    <script src="../assets/js/layout.js"></script>
+    <style>
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0
+            }
+
+            100% {
+                background-position: 200% 0
+            }
+        }
+
+        .config-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, opacity 0.3s;
+            opacity: 0
+        }
+
+        .config-panel.open {
+            max-height: 600px;
+            opacity: 1
+        }
+
+        .format-toggle input:checked+span {
+            background: #2E7D32;
+            color: #fff
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <header class="mb-6">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Reports & Export</h2>
+                    <p class="text-text-muted text-lg mt-1">Configure, preview, and download reports.</p>
+                </header>
+
+                <!-- ═══════════ SECTION 1 — REPORT TYPE CARDS ═══════════ -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+                    <!-- Card 1: Sales Report -->
+                    <div>
+                        <div class="glass-panel rounded-2xl shadow-glass hover:shadow-glass-hover transition-all p-6">
+                            <div class="text-4xl mb-3">📈</div>
+                            <h3 class="text-lg font-bold text-text-main mb-1">Sales Report</h3>
+                            <p class="text-sm text-text-muted mb-4 leading-relaxed">Revenue, orders, top items, category
+                                breakdown by date range</p>
+                            <div class="flex gap-2 mb-4">
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">CSV</span>
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">PDF</span>
+                            </div>
+                            <button onclick="toggleConfigPanel('sales')"
+                                class="w-full py-2.5 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Configure
+                                & Export</button>
+                        </div>
+                        <!-- Sales Config Panel -->
+                        <div id="panel-sales" class="config-panel glass-panel rounded-2xl shadow-glass mt-2 p-6">
+                            <h4 class="text-sm font-bold text-text-main mb-4">Sales Report Configuration</h4>
+                            <div class="space-y-4">
+                                <div class="flex gap-3">
+                                    <div class="flex-1"><label
+                                            class="text-[10px] font-bold text-text-muted uppercase mb-1 block">From</label><input
+                                            id="sales-from" type="date"
+                                            class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none" />
+                                    </div>
+                                    <div class="flex-1"><label
+                                            class="text-[10px] font-bold text-text-muted uppercase mb-1 block">To</label><input
+                                            id="sales-to" type="date"
+                                            class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none" />
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button onclick="setPresetRange('today','sales')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">Today</button>
+                                    <button onclick="setPresetRange('7d','sales')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">7D</button>
+                                    <button onclick="setPresetRange('30d','sales')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-forest text-white">30D</button>
+                                    <button onclick="setPresetRange('90d','sales')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">90D</button>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Group
+                                        By</label>
+                                    <div class="flex gap-4">
+                                        <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input
+                                                type="radio" name="sales-group" value="daily" checked
+                                                class="text-primary focus:ring-primary" /><span>Daily</span></label>
+                                        <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input
+                                                type="radio" name="sales-group" value="weekly"
+                                                class="text-primary focus:ring-primary" /><span>Weekly</span></label>
+                                        <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input
+                                                type="radio" name="sales-group" value="monthly"
+                                                class="text-primary focus:ring-primary" /><span>Monthly</span></label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Include
+                                        Sections</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded sales-section"
+                                                value="revenue" /><span>Revenue breakdown</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded sales-section"
+                                                value="top_items" /><span>Top selling items</span>
+                                            <select
+                                                class="ml-2 px-2 py-0.5 text-xs bg-white/50 border-transparent rounded outline-none">
+                                                <option>Top 5</option>
+                                                <option selected>Top 10</option>
+                                                <option>Top 20</option>
+                                            </select>
+                                        </label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded sales-section"
+                                                value="category" /><span>Category comparison</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded sales-section"
+                                                value="order_status" /><span>Order status summary</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded sales-section"
+                                                value="peak_hours" /><span>Peak hours analysis</span></label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label
+                                        class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Format</label>
+                                    <div class="flex gap-2">
+                                        <label class="format-toggle cursor-pointer"><input type="radio"
+                                                name="sales-format" value="csv" checked class="hidden" /><span
+                                                class="px-4 py-1.5 rounded-lg text-xs font-bold bg-black/5 text-text-muted transition-all">CSV</span></label>
+                                        <label class="format-toggle cursor-pointer"><input type="radio"
+                                                name="sales-format" value="pdf" class="hidden" /><span
+                                                class="px-4 py-1.5 rounded-lg text-xs font-bold bg-black/5 text-text-muted transition-all">PDF</span></label>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3 pt-2">
+                                    <button onclick="previewReport('sales')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-forest border border-forest/20 rounded-xl hover:bg-forest/5 transition-colors">Preview
+                                        Report</button>
+                                    <button onclick="exportReport('sales')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-white bg-forest rounded-xl hover:bg-green-800 transition-colors shadow-lg flex items-center justify-center gap-2"
+                                        id="export-btn-sales"><span>Download Report</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Health Report -->
+                    <div>
+                        <div class="glass-panel rounded-2xl shadow-glass hover:shadow-glass-hover transition-all p-6">
+                            <div class="text-4xl mb-3">🏥</div>
+                            <h3 class="text-lg font-bold text-text-main mb-1">Health Trends Report</h3>
+                            <p class="text-sm text-text-muted mb-4 leading-relaxed">User risk distribution, disease
+                                trends, dietary patterns, AI recommendation impact</p>
+                            <div class="flex gap-2 mb-4">
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">CSV</span>
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">PDF</span>
+                            </div>
+                            <button onclick="toggleConfigPanel('health')"
+                                class="w-full py-2.5 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Configure
+                                & Export</button>
+                        </div>
+                        <div id="panel-health" class="config-panel glass-panel rounded-2xl shadow-glass mt-2 p-6">
+                            <h4 class="text-sm font-bold text-text-main mb-4">Health Report Configuration</h4>
+                            <div class="space-y-4">
+                                <div class="flex gap-3">
+                                    <div class="flex-1"><label
+                                            class="text-[10px] font-bold text-text-muted uppercase mb-1 block">From</label><input
+                                            id="health-from" type="date"
+                                            class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none" />
+                                    </div>
+                                    <div class="flex-1"><label
+                                            class="text-[10px] font-bold text-text-muted uppercase mb-1 block">To</label><input
+                                            id="health-to" type="date"
+                                            class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none" />
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button onclick="setPresetRange('today','health')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">Today</button>
+                                    <button onclick="setPresetRange('7d','health')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">7D</button>
+                                    <button onclick="setPresetRange('30d','health')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-forest text-white">30D</button>
+                                    <button onclick="setPresetRange('90d','health')"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all">90D</button>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Include
+                                        Sections</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded health-section"
+                                                value="risk" /><span>Risk level distribution</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded health-section"
+                                                value="disease" /><span>Disease condition breakdown</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded health-section"
+                                                value="ai_stats" /><span>AI recommendation stats</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded health-section"
+                                                value="dietary" /><span>Dietary preference trends</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded health-section"
+                                                value="high_risk" /><span>High-risk user list</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer ml-6"><input
+                                                type="checkbox" class="text-primary focus:ring-primary rounded"
+                                                id="health-anonymize" /><span class="text-xs text-text-muted">Anonymize
+                                                user data</span></label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label
+                                        class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Format</label>
+                                    <div class="flex gap-2">
+                                        <label class="format-toggle cursor-pointer"><input type="radio"
+                                                name="health-format" value="csv" checked class="hidden" /><span
+                                                class="px-4 py-1.5 rounded-lg text-xs font-bold bg-black/5 text-text-muted transition-all">CSV</span></label>
+                                        <label class="format-toggle cursor-pointer"><input type="radio"
+                                                name="health-format" value="pdf" class="hidden" /><span
+                                                class="px-4 py-1.5 rounded-lg text-xs font-bold bg-black/5 text-text-muted transition-all">PDF</span></label>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3 pt-2">
+                                    <button onclick="previewReport('health')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-forest border border-forest/20 rounded-xl hover:bg-forest/5 transition-colors">Preview
+                                        Report</button>
+                                    <button onclick="exportReport('health')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-white bg-forest rounded-xl hover:bg-green-800 transition-colors shadow-lg flex items-center justify-center gap-2"
+                                        id="export-btn-health"><span>Download Report</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Inventory Report -->
+                    <div>
+                        <div class="glass-panel rounded-2xl shadow-glass hover:shadow-glass-hover transition-all p-6">
+                            <div class="text-4xl mb-3">📦</div>
+                            <h3 class="text-lg font-bold text-text-main mb-1">Inventory Report</h3>
+                            <p class="text-sm text-text-muted mb-4 leading-relaxed">Stock levels, reorder alerts,
+                                consumption rate per item</p>
+                            <div class="flex gap-2 mb-4">
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">CSV</span>
+                            </div>
+                            <button onclick="toggleConfigPanel('inventory')"
+                                class="w-full py-2.5 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Configure
+                                & Export</button>
+                        </div>
+                        <div id="panel-inventory" class="config-panel glass-panel rounded-2xl shadow-glass mt-2 p-6">
+                            <h4 class="text-sm font-bold text-text-main mb-4">Inventory Report Configuration</h4>
+                            <div class="space-y-4">
+                                <div><label class="text-[10px] font-bold text-text-muted uppercase mb-1 block">Snapshot
+                                        Date</label><input id="inv-date" type="date"
+                                        class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Include
+                                        Sections</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded inv-section"
+                                                value="stock" /><span>Current stock levels</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded inv-section"
+                                                value="reorder" /><span>Items below reorder threshold</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox" checked
+                                                class="text-primary focus:ring-primary rounded inv-section"
+                                                value="out_of_stock" /><span>Out of stock items</span></label>
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input
+                                                type="checkbox"
+                                                class="text-primary focus:ring-primary rounded inv-section"
+                                                value="history" id="inv-history-check" /><span>Stock change
+                                                history</span></label>
+                                        <div id="inv-history-range" class="hidden ml-6 flex gap-3 mt-2">
+                                            <div class="flex-1"><label
+                                                    class="text-[10px] font-bold text-text-muted">From</label><input
+                                                    id="inv-hist-from" type="date"
+                                                    class="w-full px-2 py-1.5 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-xs outline-none" />
+                                            </div>
+                                            <div class="flex-1"><label
+                                                    class="text-[10px] font-bold text-text-muted">To</label><input
+                                                    id="inv-hist-to" type="date"
+                                                    class="w-full px-2 py-1.5 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-xs outline-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Category
+                                        Filter</label>
+                                    <select id="inv-category" multiple
+                                        class="w-full px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm outline-none"
+                                        style="height:80px">
+                                        <option selected>All Categories</option>
+                                        <option>Meals</option>
+                                        <option>Snacks</option>
+                                        <option>Beverages</option>
+                                        <option>Desserts</option>
+                                        <option>Healthy</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        class="text-[10px] font-bold text-text-muted uppercase mb-2 block">Format</label>
+                                    <span
+                                        class="px-4 py-1.5 rounded-lg text-xs font-bold bg-forest text-white">CSV</span>
+                                </div>
+                                <div class="flex gap-3 pt-2">
+                                    <button onclick="previewReport('inventory')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-forest border border-forest/20 rounded-xl hover:bg-forest/5 transition-colors">Preview
+                                        Report</button>
+                                    <button onclick="exportReport('inventory')"
+                                        class="flex-1 py-2.5 text-sm font-bold text-white bg-forest rounded-xl hover:bg-green-800 transition-colors shadow-lg flex items-center justify-center gap-2"
+                                        id="export-btn-inventory"><span>Download Report</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 3 — PREVIEW PANEL ═══════════ -->
+                <div id="previewPanel" class="hidden glass-panel rounded-2xl shadow-glass overflow-hidden mb-6">
+                    <div class="p-5 border-b border-black/5 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-text-main" id="previewTitle">Report Preview</h3>
+                            <p class="text-xs text-text-muted" id="previewSubtitle">Showing first 10 rows</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="exportReport(activeReport)"
+                                class="px-5 py-2 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Download
+                                Full Report</button>
+                            <button onclick="closePreview()"
+                                class="text-sm font-bold text-text-muted hover:underline">Close Preview</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="previewTable">
+                            <thead id="previewThead"></thead>
+                            <tbody id="previewTbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-5 border-t border-black/5 bg-white/20">
+                        <div class="flex flex-wrap gap-6 text-xs text-text-muted mb-4" id="previewStats"></div>
+                        <button onclick="exportReport(activeReport)"
+                            class="px-8 py-3 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Export
+                            Full Report</button>
+                    </div>
+                </div>
+
+                <!-- ═══════════ RECENT EXPORTS LOG ═══════════ -->
+                <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                    <div class="p-5 border-b border-black/5">
+                        <h3 class="text-base font-bold text-text-main">Recent Exports</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30">
+                                    <th class="px-4 py-3">Type</th>
+                                    <th class="px-4 py-3">Format</th>
+                                    <th class="px-4 py-3">Date Range</th>
+                                    <th class="px-4 py-3">Generated At</th>
+                                    <th class="px-4 py-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentExportsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="exportsEmpty" class="flex flex-col items-center justify-center py-12 text-center">
+                        <span class="material-symbols-outlined text-3xl text-text-muted mb-2">file_download_off</span>
+                        <p class="text-sm font-bold text-text-muted">No exports yet this session</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    <script src="../assets/js/admin-reports.js"></script>
+</body>
+
+</html>

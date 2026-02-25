@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Food Management</title>
+
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)",
+                        "primary-dark": "var(--color-primary-dark, #0e9f15)",
+                        "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5",
+                        "surface-glass": "rgba(255, 255, 255, 0.7)",
+                        "text-main": "#1B261D",
+                        "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00",
+                        "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: {
+                        "glass": "0 8px 32px 0 rgba(17, 212, 27, 0.05)",
+                        "glass-hover": "0 12px 40px 0 rgba(17, 212, 27, 0.1)",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Layout Handler -->
+    <script src="../assets/js/layout.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Background Decorative Blobs */
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.1);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+        }
+
+        /* CSS-Only Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #ccc;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: #11d41b;
+        }
+
+        .toggle-switch input:checked+.toggle-slider::before {
+            transform: translateX(20px);
+        }
+
+        .toggle-spinner {
+            display: none;
+        }
+
+        .toggle-loading .toggle-slider {
+            opacity: 0.5;
+        }
+
+        .toggle-loading .toggle-spinner {
+            display: flex;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        /* Category Badge Colors */
+        .cat-meals {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+
+        .cat-snacks {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .cat-beverages {
+            background: #ccfbf1;
+            color: #0f766e;
+        }
+
+        .cat-desserts {
+            background: #fce7f3;
+            color: #be185d;
+        }
+
+        .cat-healthy {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Validation Error */
+        .field-error {
+            border-color: #E53935 !important;
+        }
+
+        .error-text {
+            color: #E53935;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .field-error+.error-text {
+            display: block;
+        }
+
+        /* Row fade animation */
+        .row-deleting {
+            transition: opacity 0.3s, max-height 0.3s;
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .row-flash {
+            animation: flashGreen 0.8s ease;
+        }
+
+        @keyframes flashGreen {
+
+            0%,
+            100% {
+                background: transparent;
+            }
+
+            50% {
+                background: rgba(17, 212, 27, 0.1);
+            }
+        }
+
+        /* Shimmer */
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <!-- BG Blobs -->
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+
+            <!-- Topbar Container -->
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <!-- SECTION 1: PAGE HEADER ROW -->
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                    <div class="flex flex-col gap-2">
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Food Management
+                        </h2>
+                        <p class="text-text-muted text-lg">Manage menu items, nutritional data & availability</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="addFoodBtn"
+                            class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-dark hover:shadow-lg hover:shadow-primary/30 rounded-xl text-white font-bold transition-all transform active:scale-95 whitespace-nowrap">
+                            <span class="material-symbols-outlined">add</span>
+                            <span>Add Food</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: FILTER & SEARCH BAR -->
+                <div
+                    class="glass-panel p-2 rounded-2xl mb-6 shadow-glass flex flex-col md:flex-row items-center gap-3 sticky top-0 z-20">
+                    <div class="relative flex-1 w-full">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+                        <input id="searchInput"
+                            class="w-full pl-10 pr-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main placeholder-text-muted/70 transition-all outline-none"
+                            placeholder="Search food items by name..." type="text" />
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <select id="filterCategory"
+                            class="px-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                            <option value="all">All Categories</option>
+                            <option value="Meals">Meals</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Desserts">Desserts</option>
+                            <option value="Healthy">Healthy</option>
+                        </select>
+                        <select id="filterStatus"
+                            class="px-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                            <option value="all">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="out">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Results Count -->
+                <p class="text-sm text-text-muted font-medium mb-4" id="resultsCount">Showing 0 of 0 items</p>
+
+                <!-- SECTION 3: FOOD TABLE -->
+                <div class="glass-panel rounded-2xl overflow-hidden shadow-glass">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30">
+                                    <th class="px-6 py-4">Image</th>
+                                    <th class="px-6 py-4">Name & ID</th>
+                                    <th class="px-6 py-4">Category</th>
+                                    <th class="px-6 py-4 text-right">Calories</th>
+                                    <th class="px-6 py-4 text-right">Sugar (g)</th>
+                                    <th class="px-6 py-4 text-right">Protein (g)</th>
+                                    <th class="px-6 py-4 text-right">Stock</th>
+                                    <th class="px-6 py-4">Status</th>
+                                    <th class="px-6 py-4 text-center">Available</th>
+                                    <th class="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="foodTableBody">
+                                <!-- JS will render rows here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Empty State (hidden by default) -->
+                    <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+                        <div class="bg-primary/10 p-6 rounded-full mb-4">
+                            <span class="material-symbols-outlined text-4xl text-primary">shopping_basket</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-text-main mb-2">No food items found</h3>
+                        <p class="text-text-muted max-w-sm mb-4">Try adjusting your search or filters.</p>
+                        <button onclick="openAddModal()"
+                            class="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors">+
+                            Add Food Item</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL 1: ADD / EDIT FOOD               -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="foodModal" class="modal-overlay" onclick="if(event.target===this) closeModal()">
+        <div
+            class="modal-content glass-panel rounded-2xl shadow-2xl w-full max-w-[580px] max-h-[90vh] overflow-y-auto mx-4">
+            <div class="p-6 border-b border-black/5">
+                <h3 id="modalTitle" class="text-xl font-bold text-text-main">Add New Food Item</h3>
+            </div>
+            <form id="foodForm" class="p-6 space-y-5" onsubmit="event.preventDefault(); submitFood();">
+                <!-- Row 1: Name + Category -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Food Name *</label>
+                        <input id="fieldName" type="text"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none transition-colors"
+                            placeholder="e.g. Grilled Chicken Salad">
+                        <p class="error-text">Name is required (2-100 chars)</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Category *</label>
+                        <select id="fieldCategory"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none cursor-pointer">
+                            <option value="">Select Category</option>
+                            <option value="Meals">Meals</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Desserts">Desserts</option>
+                            <option value="Healthy">Healthy</option>
+                        </select>
+                        <p class="error-text">Category is required</p>
+                    </div>
+                </div>
+                <!-- Row 2: Calories + Stock -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Calories *</label>
+                        <input id="fieldCalories" type="number" min="0"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                            placeholder="e.g. 350">
+                        <p class="error-text">Calories required (≥ 0)</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Stock Quantity *</label>
+                        <input id="fieldStock" type="number" min="0"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                            placeholder="e.g. 50">
+                        <p class="error-text">Stock required (≥ 0)</p>
+                    </div>
+                </div>
+                <!-- Row 3: Sugar + Protein + Fat -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Sugar (g) *</label>
+                        <input id="fieldSugar" type="number" min="0"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                            placeholder="e.g. 5">
+                        <p class="error-text">Sugar required (≥ 0)</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Protein (g) *</label>
+                        <input id="fieldProtein" type="number" min="0"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                            placeholder="e.g. 18">
+                        <p class="error-text">Protein required (≥ 0)</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-text-muted mb-1.5">Fat (g)</label>
+                        <input id="fieldFat" type="number" min="0"
+                            class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                            placeholder="Optional">
+                    </div>
+                </div>
+                <!-- Row 4: Image URL + Preview -->
+                <div>
+                    <label class="block text-xs font-bold text-text-muted mb-1.5">Image URL</label>
+                    <input id="fieldImageUrl" type="text"
+                        class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none"
+                        placeholder="https://example.com/image.jpg">
+                    <p class="error-text">Must start with http:// or https://</p>
+                    <div class="mt-2 flex items-center gap-2">
+                        <div id="imagePreview"
+                            class="w-10 h-10 rounded-lg bg-black/5 flex items-center justify-center text-lg overflow-hidden border border-black/10">
+                            🍽️</div>
+                        <span class="text-[10px] text-text-muted">Preview</span>
+                    </div>
+                </div>
+                <!-- Row 5: Description -->
+                <div>
+                    <label class="block text-xs font-bold text-text-muted mb-1.5">Description</label>
+                    <textarea id="fieldDescription" rows="3"
+                        class="w-full px-4 py-2.5 bg-white/60 border border-black/10 rounded-xl text-sm text-text-main focus:border-primary focus:ring-0 outline-none resize-none"
+                        placeholder="Brief description (optional)"></textarea>
+                </div>
+                <!-- Row 6: Available Toggle -->
+                <div class="flex items-center justify-between bg-white/40 rounded-xl p-4 border border-black/5">
+                    <div>
+                        <p class="text-sm font-bold text-text-main">Available on Menu</p>
+                        <p class="text-[10px] text-text-muted">Toggle to show/hide from customer menu</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="fieldAvailable" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </form>
+            <!-- Footer -->
+            <div class="p-6 border-t border-black/5 flex justify-end gap-3">
+                <button onclick="closeModal()"
+                    class="px-5 py-2.5 rounded-xl text-sm font-bold text-text-muted hover:bg-black/5 transition-colors">Cancel</button>
+                <button id="submitBtn" onclick="submitFood()"
+                    class="px-6 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
+                    <span id="submitBtnText">Save Food</span>
+                    <div id="submitSpinner"
+                        class="hidden w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL 2: DELETE CONFIRMATION            -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="deleteModal" class="modal-overlay" onclick="if(event.target===this) closeDeleteModal()">
+        <div class="modal-content glass-panel rounded-2xl shadow-2xl w-full max-w-[420px] mx-4 text-center p-8">
+            <div class="text-5xl mb-4">⚠️</div>
+            <h3 class="text-xl font-bold text-text-main mb-2">Delete Food Item?</h3>
+            <p class="text-sm text-text-muted mb-6">You are about to delete <span id="deleteItemName"
+                    class="font-bold text-primary-dark"></span>. This will also remove it from the AI recommendation
+                engine and cannot be undone.</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeDeleteModal()"
+                    class="px-5 py-2.5 rounded-xl text-sm font-bold text-text-muted hover:bg-black/5 transition-colors">Cancel</button>
+                <button id="deleteConfirmBtn" onclick="confirmDelete()"
+                    class="px-6 py-2.5 bg-danger-red text-white font-bold rounded-xl hover:bg-red-700 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
+                    <span id="deleteBtnText">Yes, Delete</span>
+                    <div id="deleteSpinner"
+                        class="hidden w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Logic -->
+    <script src="../assets/js/admin-food.js"></script>
+</body>
+
+</html>

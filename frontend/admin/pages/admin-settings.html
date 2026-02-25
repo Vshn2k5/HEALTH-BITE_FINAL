@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Settings</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)",
+                        "primary-dark": "var(--color-primary-dark, #0e9f15)",
+                        "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5", "surface-glass": "rgba(255,255,255,0.7)",
+                        "text-main": "#1B261D", "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00", "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: { "glass": "0 8px 32px 0 rgba(17,212,27,0.05)", "glass-hover": "0 12px 40px 0 rgba(17,212,27,0.1)" },
+                },
+            },
+        }
+    </script>
+    <script src="../assets/js/layout.js"></script>
+    <style>
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+            transition: background 0.5s
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none
+        }
+
+        /* Toggle Switch Styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: var(--color-primary, #11d41b);
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: var(--color-primary, #11d41b);
+        }
+
+        .toggle-checkbox {
+            right: 4px;
+            z-index: 1;
+            border-color: #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .toggle-label {
+            width: 44px;
+            height: 24px;
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+
+        /* Color Picker Radio */
+        .color-radio:checked+div {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+        }
+
+        /* Dark Mode Transitions */
+        html.dark {
+            --color-bg: #121814;
+            --color-surface: rgba(30, 41, 34, 0.7);
+            --color-text: #F3F4F6;
+            --color-text-muted: #9CA3AF;
+            --color-border: rgba(255, 255, 255, 0.1);
+        }
+
+        html.dark body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        html.dark .glass-panel {
+            background: var(--color-surface);
+            border-color: var(--color-border);
+        }
+
+        html.dark .bg-white\/50 {
+            background: rgba(0, 0, 0, 0.2) !important;
+            color: white;
+        }
+
+        html.dark .text-text-main {
+            color: var(--color-text) !important;
+        }
+
+        html.dark .text-text-muted {
+            color: var(--color-text-muted) !important;
+        }
+
+        html.dark .border-black\/5 {
+            border-color: var(--color-border) !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px
+        }
+    </style>
+</head>
+
+<body
+    class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20 transition-colors duration-500">
+    <div class="flex h-screen w-full overflow-hidden">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <div class="bg-blob-1" id="primaryBlob"></div>
+            <div class="bg-blob-2"></div>
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <header class="mb-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Settings</h2>
+                    <p class="text-text-muted text-lg mt-1">Manage system preferences, themes, and your admin profile.
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                    <!-- Left Column: Navigation/Tabs -->
+                    <div class="lg:col-span-1 space-y-2">
+                        <button id="tab-btn-theme" onclick="switchSettingsTab('theme')"
+                            class="w-full text-left px-5 py-3 rounded-xl bg-white shadow-sm shadow-primary/10 text-forest font-bold border border-white/50 flex items-center gap-3 transition-colors">
+                            <span class="material-symbols-outlined text-[20px] filled">palette</span> Appearance & Theme
+                        </button>
+                        <button id="tab-btn-profile" onclick="switchSettingsTab('profile')"
+                            class="w-full text-left px-5 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-colors flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">person</span> Profile Settings
+                        </button>
+                        <button id="tab-btn-noti" onclick="switchSettingsTab('noti')"
+                            class="w-full text-left px-5 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-colors flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+                            Notifications
+                        </button>
+                        <button id="tab-btn-security" onclick="switchSettingsTab('security')"
+                            class="w-full text-left px-5 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-colors flex items-center gap-3 border-t border-black/5 mt-4 pt-4">
+                            <span class="material-symbols-outlined text-[20px]">security</span> Security & API Keys
+                        </button>
+                    </div>
+
+                    <!-- Right Column: Settings Content -->
+                    <div class="lg:col-span-2 space-y-8 relative">
+
+                        <!-- TAB: THEME & APPEARANCE -->
+                        <div id="tab-theme"
+                            class="settings-tab transition-opacity duration-300 space-y-8 block opacity-100">
+                            <!-- Theme Settings -->
+                            <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                                <div class="p-6 border-b border-black/5">
+                                    <h3 class="text-lg font-bold text-text-main flex items-center gap-2"><span
+                                            class="material-symbols-outlined text-forest">contrast</span> Interface
+                                        Theme
+                                    </h3>
+                                    <p class="text-sm text-text-muted mt-1">Select your preferred color scheme and dark
+                                        mode
+                                        settings.</p>
+                                </div>
+                                <div class="p-6 space-y-8">
+
+                                    <!-- Dark Mode Toggle -->
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-text-main mb-1">Dark Mode</h4>
+                                            <p class="text-xs text-text-muted">Switch the interface to a darker,
+                                                high-contrast theme.</p>
+                                        </div>
+                                        <div class="relative inline-block w-11 mr-2 align-middle select-none">
+                                            <input type="checkbox" id="darkModeToggle"
+                                                class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-[2px] right-[22px] m-0" />
+                                            <label for="darkModeToggle"
+                                                class="toggle-label block overflow-hidden cursor-pointer"></label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Accent Color Picker -->
+                                    <div>
+                                        <h4 class="text-sm font-bold text-text-main mb-3">Primary Accent Color</h4>
+                                        <div class="flex flex-wrap gap-4" id="colorPickerContainer">
+                                            <!-- HealthBite Green (Default) -->
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="theme-color" value="green"
+                                                    class="color-radio sr-only" checked data-primary="#11d41b"
+                                                    data-dark="#0e9f15" data-forest="#2E7D32"
+                                                    data-blob="rgba(17,212,27,0.06)">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-[#11d41b] text-[#11d41b] transition-transform duration-200">
+                                                </div>
+                                            </label>
+                                            <!-- Ocean Blue -->
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="theme-color" value="blue"
+                                                    class="color-radio sr-only" data-primary="#3b82f6"
+                                                    data-dark="#2563eb" data-forest="#1e40af"
+                                                    data-blob="rgba(59,130,246,0.06)">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-[#3b82f6] text-[#3b82f6] transition-transform duration-200">
+                                                </div>
+                                            </label>
+                                            <!-- Sunset Orange -->
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="theme-color" value="orange"
+                                                    class="color-radio sr-only" data-primary="#f97316"
+                                                    data-dark="#ea580c" data-forest="#9a3412"
+                                                    data-blob="rgba(249,115,22,0.06)">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-[#f97316] text-[#f97316] transition-transform duration-200">
+                                                </div>
+                                            </label>
+                                            <!-- Royal Purple -->
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="theme-color" value="purple"
+                                                    class="color-radio sr-only" data-primary="#a855f7"
+                                                    data-dark="#9333ea" data-forest="#581c87"
+                                                    data-blob="rgba(168,85,247,0.06)">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-[#a855f7] text-[#a855f7] transition-transform duration-200">
+                                                </div>
+                                            </label>
+                                            <!-- Rose Pink -->
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="theme-color" value="rose"
+                                                    class="color-radio sr-only" data-primary="#f43f5e"
+                                                    data-dark="#e11d48" data-forest="#9f1239"
+                                                    data-blob="rgba(244,63,94,0.06)">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-[#f43f5e] text-[#f43f5e] transition-transform duration-200">
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- Profile Quick Edit -->
+                            <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                                <div class="p-6 border-b border-black/5 bg-white/30">
+                                    <h3 class="text-lg font-bold text-text-main flex items-center gap-2"><span
+                                            class="material-symbols-outlined text-forest">manage_accounts</span> System
+                                        Preferences</h3>
+                                </div>
+                                <div class="p-6 space-y-6">
+
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-text-main mb-1">Compact Table View</h4>
+                                            <p class="text-xs text-text-muted">Reduce padding in data tables to show
+                                                more
+                                                rows.</p>
+                                        </div>
+                                        <div class="relative inline-block w-11 mr-2 align-middle select-none">
+                                            <input type="checkbox" id="compactModeToggle"
+                                                class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-[2px] right-[22px] m-0" />
+                                            <label for="compactModeToggle"
+                                                class="toggle-label block overflow-hidden cursor-pointer"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between border-t border-black/5 pt-6">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-text-main mb-1">Animations & Transitions
+                                            </h4>
+                                            <p class="text-xs text-text-muted">Enable smooth UI animations (disable for
+                                                better performance).</p>
+                                        </div>
+                                        <div class="relative inline-block w-11 mr-2 align-middle select-none">
+                                            <input type="checkbox" id="animationToggle"
+                                                class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-[2px] right-0 m-0"
+                                                checked />
+                                            <label for="animationToggle"
+                                                class="toggle-label block overflow-hidden cursor-pointer"
+                                                style="background-color: var(--color-primary, #11d41b)"></label>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: PROFILE -->
+                        <div id="tab-profile"
+                            class="settings-tab transition-opacity duration-300 space-y-8 hidden opacity-0">
+                            <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                                <div class="p-6 border-b border-black/5">
+                                    <h3 class="text-lg font-bold text-text-main flex items-center gap-2"><span
+                                            class="material-symbols-outlined text-forest">person</span> Profile
+                                        Information</h3>
+                                    <p class="text-sm text-text-muted mt-1">Update your personal and administrative
+                                        details.</p>
+                                </div>
+                                <div class="p-6 space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-text-muted uppercase mb-1">First
+                                                Name</label>
+                                            <input type="text" value="System"
+                                                class="w-full px-3 py-2 bg-white/50 border border-black/5 rounded-lg text-sm text-text-main outline-none focus:border-primary">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-text-muted uppercase mb-1">Last
+                                                Name</label>
+                                            <input type="text" value="Admin"
+                                                class="w-full px-3 py-2 bg-white/50 border border-black/5 rounded-lg text-sm text-text-main outline-none focus:border-primary">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-text-muted uppercase mb-1">Email
+                                            Address</label>
+                                        <input type="email" value="admin@healthbite.co"
+                                            class="w-full px-3 py-2 bg-white/50 border border-black/5 rounded-lg text-sm text-text-main outline-none focus:border-primary">
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-xs font-bold text-text-muted uppercase mb-1">Role</label>
+                                        <input type="text" value="Super Admin" disabled
+                                            class="w-full px-3 py-2 bg-black/5 border border-black/5 rounded-lg text-sm text-text-muted cursor-not-allowed">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: NOTIFICATIONS -->
+                        <div id="tab-noti"
+                            class="settings-tab transition-opacity duration-300 space-y-8 hidden opacity-0">
+                            <div class="glass-panel rounded-2xl shadow-glass overflow-hidden">
+                                <div class="p-6 border-b border-black/5">
+                                    <h3 class="text-lg font-bold text-text-main flex items-center gap-2"><span
+                                            class="material-symbols-outlined text-forest">notifications_active</span>
+                                        Notification Alerts</h3>
+                                    <p class="text-sm text-text-muted mt-1">Manage exactly what events trigger browser
+                                        and email notifications.</p>
+                                </div>
+                                <div class="p-6 space-y-4">
+                                    <label class="flex items-center gap-3">
+                                        <input type="checkbox" checked
+                                            class="w-4 h-4 text-primary rounded border-black/20 focus:ring-primary">
+                                        <span class="text-sm font-semibold text-text-main">New Order Arrivals</span>
+                                    </label>
+                                    <label class="flex items-center gap-3">
+                                        <input type="checkbox" checked
+                                            class="w-4 h-4 text-primary rounded border-black/20 focus:ring-primary">
+                                        <span class="text-sm font-semibold text-text-main">Inventory Critical (Below
+                                            Reorder Level)</span>
+                                    </label>
+                                    <label class="flex items-center gap-3">
+                                        <input type="checkbox"
+                                            class="w-4 h-4 text-primary rounded border-black/20 focus:ring-primary">
+                                        <span class="text-sm font-semibold text-text-main">AI Model Accuracy Drop
+                                            Alert</span>
+                                    </label>
+                                    <label class="flex items-center gap-3">
+                                        <input type="checkbox" checked
+                                            class="w-4 h-4 text-primary rounded border-black/20 focus:ring-primary">
+                                        <span class="text-sm font-semibold text-text-main">Daily Summary Report
+                                            (Email)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: SECURITY -->
+                        <div id="tab-security"
+                            class="settings-tab transition-opacity duration-300 space-y-8 hidden opacity-0">
+                            <div
+                                class="glass-panel rounded-2xl shadow-glass overflow-hidden border border-danger-red/10">
+                                <div class="p-6 border-b border-black/5 bg-red-50/10">
+                                    <h3 class="text-lg font-bold text-danger-red flex items-center gap-2"><span
+                                            class="material-symbols-outlined">security</span> Account Security</h3>
+                                    <p class="text-sm text-text-muted mt-1">Manage active sessions and password
+                                        settings.</p>
+                                </div>
+                                <div class="p-6 space-y-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-text-main mb-1">Two-Factor Authentication
+                                            </h4>
+                                            <p class="text-xs text-text-muted">Require an authenticator code on login.
+                                            </p>
+                                        </div>
+                                        <button
+                                            class="px-4 py-1.5 rounded-lg bg-text-muted/10 text-text-muted text-sm font-bold hover:bg-text-muted/20 transition-colors">Enable
+                                            2FA</button>
+                                    </div>
+                                    <div class="flex items-center justify-between border-t border-black/5 pt-6">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-text-main mb-1">Active Sessions</h4>
+                                            <p class="text-xs text-text-muted">You are currently logged in from 1
+                                                device.</p>
+                                        </div>
+                                        <button
+                                            class="px-4 py-1.5 rounded-lg border border-danger-red text-danger-red text-sm font-bold hover:bg-red-50 transition-colors">Log
+                                            Out All Devices</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Global Save/Reset Buttons -->
+                        <div
+                            class="flex justify-end gap-3 pt-4 sticky bottom-0 bg-white/10 backdrop-blur pb-4 border-t border-black/5 mt-4">
+                            <button onclick="resetSettings()"
+                                class="px-6 py-2.5 text-sm font-bold text-text-muted hover:text-text-main transition-colors">Cancel</button>
+                            <button onclick="saveSettings()"
+                                class="px-8 py-2.5 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg flex items-center gap-2"
+                                id="saveBtn">
+                                <span class="material-symbols-outlined text-[18px]" id="saveIcon">save</span>
+                                <span id="saveText">Save Changes</span>
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </main>
+    </div>
+    <script src="../assets/js/admin-settings.js"></script>
+</body>
+
+</html>

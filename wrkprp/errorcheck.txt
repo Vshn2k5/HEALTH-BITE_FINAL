@@ -1,0 +1,509 @@
+🔧 PROMPT 2 — COMPLETE ERROR CORRECTION PROMPT
+
+You are a senior full-stack developer.
+You have been given a test report from the
+HealthBite Smart Canteen application that
+lists all failing tests and errors.
+
+Your job: Fix EVERY error. Leave no test failing.
+
+══════════════════════════════════════
+THE APPLICATION STACK:
+══════════════════════════════════════
+
+Backend:  FastAPI (Python)
+Database: PostgreSQL (SQLAlchemy ORM)
+Frontend: HTML + Vanilla JS
+Auth:     JWT tokens
+Port:     8000
+
+Files that may need fixing:
+  backend/app.py
+  backend/database.py
+  backend/models.py
+  backend/schemas.py
+  backend/dependencies.py
+  backend/auth.py
+  backend/health.py
+  backend/menu.py
+  backend/analytics.py
+  backend/chatbot.py
+  backend/chatbot_engine.py
+  backend/admin/dashboard.py
+  backend/admin/foods.py
+  backend/admin/inventory.py
+  backend/admin/orders.py
+  backend/admin/users.py
+  backend/admin/analytics.py
+  backend/admin/ai_monitor.py
+  backend/admin/reports.py
+  backend/admin/audit.py
+  backend/admin/dependencies.py
+  backend/admin/audit_helper.py
+  frontend/user/script.js
+  frontend/user/full-menu.html
+  frontend/user/orders.html
+  frontend/user/health-analytics.html
+  frontend/user/health-assistant.html
+  frontend/user/health.html
+  frontend/user/user.html
+  frontend/admin/pages/dashboard.html
+  frontend/admin/pages/food-management.html
+  frontend/admin/pages/inventory.html
+  frontend/admin/pages/orders.html
+  frontend/admin/pages/users.html
+  frontend/admin/pages/analytics.html
+  frontend/admin/pages/ai-monitoring.html
+  frontend/admin/pages/reports.html
+  frontend/admin/pages/audit-logs.html
+  frontend/admin/assets/js/config.js
+
+══════════════════════════════════════
+HOW TO APPROACH EACH ERROR:
+══════════════════════════════════════
+
+STEP 1: READ the error message fully
+  Do not guess. Read the exact error.
+  Identify: which file, which function,
+    which line, what it expected vs got.
+
+STEP 2: FIND the root cause
+  Is it a missing field in the model?
+  Is it a wrong field name in schema?
+  Is it a missing import?
+  Is it wrong SQL query?
+  Is it frontend calling wrong URL?
+  Is it frontend sending wrong body format?
+  Is it missing auth header?
+  Is it wrong response format?
+
+STEP 3: FIX only what is broken
+  Do not rewrite working code.
+  Surgical fix to the specific problem.
+  If fixing one bug reveals another, fix that too.
+
+STEP 4: VERIFY the fix
+  After fixing, re-run the failed test.
+  Confirm it now passes.
+  Confirm no other tests broke.
+
+══════════════════════════════════════
+COMMON ERRORS AND HOW TO FIX THEM:
+══════════════════════════════════════
+
+── ERROR TYPE 1: Missing Model Field ──
+
+SYMPTOM:
+  AttributeError: 'User' object has
+    no attribute 'risk_level'
+  OR
+  Column 'risk_level' does not exist
+
+CAUSE:
+  Model updated in code but migration
+  not run, OR model not updated at all.
+
+FIX:
+  1. Add column to model class in models.py
+  2. Run: alembic revision --autogenerate
+       -m "add_risk_level"
+  3. Run: alembic upgrade head
+  4. Verify column exists in pgAdmin
+
+── ERROR TYPE 2: Schema Validation Error ──
+
+SYMPTOM:
+  422 Unprocessable Entity
+  "field required" in response
+  OR "value is not a valid..."
+
+CAUSE:
+  Request body field names don't match
+  Pydantic schema field names.
+  OR wrong data type sent.
+
+FIX:
+  1. Check schemas.py for the relevant schema
+  2. Compare field names with what frontend sends
+  3. Either fix schema field name
+     OR fix frontend body field name
+  4. Check data types match
+     (str vs int, list vs single value)
+
+── ERROR TYPE 3: 401 Unauthorized ──
+
+SYMPTOM:
+  API returns 401 when it should work
+
+CAUSE A: Token not being sent
+  FIX: Check frontend sends header:
+    Authorization: Bearer {token}
+  Check token key in localStorage:
+    User pages: localStorage.getItem('token')
+    Admin pages: localStorage.getItem('admin_token')
+
+CAUSE B: Token expired
+  FIX: Increase expiry in auth.py:
+    ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+
+CAUSE C: Wrong secret key
+  FIX: Ensure .env JWT_SECRET_KEY matches
+    what dependencies.py reads
+
+── ERROR TYPE 4: 403 Forbidden ──
+
+SYMPTOM:
+  Admin endpoint returns 403 with
+  valid admin token
+
+CAUSE A: Role check too strict
+  Check admin/dependencies.py
+  SUPER_ADMIN, MANAGER, ANALYST
+  must all pass get_current_admin()
+
+CAUSE B: Wrong role name in DB
+  Old data has role="ADMIN"
+  New code checks for "SUPER_ADMIN"
+  FIX: Update existing admin user:
+    UPDATE users SET role='SUPER_ADMIN'
+    WHERE role='ADMIN';
+
+CAUSE C: require_role() called wrong
+  FIX: Check the specific endpoint's
+    dependency matches the test's role
+
+── ERROR TYPE 5: 404 Not Found ──
+
+SYMPTOM:
+  Frontend gets 404 on API calls
+
+CAUSE A: Blueprint/Router not registered
+  FIX: Check app.py includes all routers:
+    app.include_router(router_name)
+
+CAUSE B: Wrong URL prefix
+  FIX: Check router prefix matches
+    what frontend sends to
+
+CAUSE C: Wrong method (GET vs POST)
+  FIX: Match method in route decorator
+    with method in frontend fetch()
+
+── ERROR TYPE 6: 500 Internal Server Error ──
+
+SYMPTOM:
+  API returns 500
+
+CAUSE A: Unhandled exception in route
+  FIX: Check server console for traceback
+  Add try/except around the failing code
+  Fix the underlying error
+
+CAUSE B: Database connection failed
+  FIX: Check .env DATABASE_URL
+  Check PostgreSQL is running
+  Check username/password correct
+
+CAUSE C: Import error in route file
+  FIX: Check all imports at top of file
+  Run: python -c "import backend.admin.foods"
+  Fix any ImportError shown
+
+── ERROR TYPE 7: Hardcoded Data Still Appearing ──
+
+SYMPTOM:
+  Data shows same values every page load
+  OR shows random values on each refresh
+  OR shows numbers that never match DB
+
+CAUSE:
+  random.randint() still in analytics.py
+  OR FOOD_ITEMS hardcoded list still used
+  OR test/mock data returned from endpoint
+
+FIX for analytics.py:
+  Find every random.randint() or random.uniform()
+  Replace with real DB query
+  
+FIX for menu.py:
+  Remove FOOD_ITEMS list entirely
+  Replace with: db.query(FoodItem)...
+
+── ERROR TYPE 8: Frontend Shows Blank/Undefined ──
+
+SYMPTOM:
+  Cards show "undefined" or "NaN"
+  OR charts render empty despite data
+  OR table shows no rows despite API returning rows
+
+CAUSE A: Wrong JSON field name
+  API returns: { "total_revenue": 500 }
+  Frontend reads: data.revenue → undefined
+  FIX: Match frontend field access to API response
+
+CAUSE B: Response structure changed
+  API returns: { "success": true, "data": {...} }
+  Frontend reads: response.revenue → undefined
+  FIX: Frontend should read: response.data.revenue
+
+CAUSE C: Chart destroy not called
+  Old chart not destroyed before new render
+  FIX: Before re-rendering:
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+
+CAUSE D: Async not awaited
+  Data not loaded before DOM update
+  FIX: Ensure await before accessing response
+    const data = await response.json()
+    NOT: response.json().then(...)
+    if using async/await pattern
+
+── ERROR TYPE 9: CORS Error ──
+
+SYMPTOM:
+  Browser console: "CORS policy blocked"
+  OR: "No 'Access-Control-Allow-Origin'"
+
+FIX:
+  In backend/app.py:
+    app.add_middleware(
+      CORSMiddleware,
+      allow_origins=["http://localhost:8000",
+                     "http://127.0.0.1:8000"],
+      allow_credentials=True,
+      allow_methods=["*"],
+      allow_headers=["*"],
+    )
+
+── ERROR TYPE 10: Stock Not Decrementing ──
+
+SYMPTOM:
+  Integration Test 3 fails:
+  Order placed but inventory unchanged
+
+CAUSE:
+  menu.py place_order not updating inventory
+
+FIX in menu.py:
+  FIND the order creation code
+  ADD after creating OrderItem:
+    inv = db.query(Inventory)\
+      .filter_by(food_id=food.id).first()
+    if inv:
+      inv.current_stock -= qty
+      inv.last_updated = datetime.now()
+  THEN db.commit()
+
+── ERROR TYPE 11: Health Profile Not Syncing ──
+
+SYMPTOM:
+  User sets conditions in health.html
+  Admin Users page shows empty conditions
+  risk_level stays 'low' always
+
+CAUSE:
+  health.py creates HealthProfile
+  but does NOT update users.conditions
+
+FIX in health.py:
+  After saving health profile:
+    user = db.query(User)\
+      .filter_by(id=current_user.id).first()
+    user.conditions = json.dumps(disease_list)
+    user.risk_level = calculate_risk(disease_list)
+    user.risk_score = calculate_score(disease_list)
+    db.commit()
+
+── ERROR TYPE 12: Order Items as JSON String ──
+
+SYMPTOM:
+  Admin Orders page shows items as
+  raw JSON string: "[101, 102]"
+  NOT as proper item breakdown table
+
+CAUSE:
+  Old Order model stored items as String
+  OrderItem table not created or not populated
+
+FIX:
+  1. Ensure OrderItem table exists in DB
+  2. Fix place_order to create OrderItem rows
+  3. Fix admin orders route to JOIN order_items
+  4. Fix GET /api/menu/history to return
+     items as list of objects not JSON string
+
+── ERROR TYPE 13: Admin Login Not Redirecting ──
+
+SYMPTOM:
+  Login with ADMIN credentials
+  Goes to user.html instead of dashboard.html
+
+CAUSE:
+  script.js still checks: role === "ADMIN"
+  But DB has: role = "SUPER_ADMIN"
+
+FIX in frontend/user/script.js:
+  FIND:
+    if (data.role === "ADMIN")
+  REPLACE:
+    const ADMIN_ROLES = [
+      'SUPER_ADMIN','MANAGER','ANALYST'
+    ];
+    if (ADMIN_ROLES.includes(data.role))
+
+── ERROR TYPE 14: Charts Not Rendering ──
+
+SYMPTOM:
+  Canvas element exists
+  No red errors in console
+  But chart area is blank
+
+CAUSE A: Chart.js not loaded
+  FIX: Add CDN before chart code:
+    <script src="https://cdn.jsdelivr.net/
+      npm/chart.js"></script>
+
+CAUSE B: Canvas ID mismatch
+  FIX: Check id in HTML matches
+    document.getElementById('myChart') in JS
+
+CAUSE C: Data arrays empty
+  FIX: Log data before chart creation:
+    console.log('Chart data:', labels, values)
+  Fix the API call to return real data
+
+CAUSE D: Container has zero height
+  FIX: Add explicit height to canvas parent:
+    <div style="height: 300px">
+      <canvas id="myChart"></canvas>
+    </div>
+
+── ERROR TYPE 15: Deactivated User Can Still Login ──
+
+SYMPTOM:
+  Admin deactivates user
+  User can still login successfully
+
+CAUSE:
+  auth.py login doesn't check user.status
+
+FIX in auth.py:
+  After finding user, ADD:
+    if user.status == 'inactive' or \
+       user.disabled == 1:
+      raise HTTPException(
+        status_code=401,
+        detail="Account is deactivated"
+      )
+
+══════════════════════════════════════
+SYSTEMATIC FIX PROCESS:
+══════════════════════════════════════
+
+Given the test report, fix errors in this order:
+
+PRIORITY 1 — Fix blockers first:
+  Errors that cause 500 or prevent login
+  Database connection errors
+  Missing tables or columns
+  Import errors
+
+PRIORITY 2 — Fix auth/RBAC errors:
+  401 errors on valid tokens
+  403 errors on correct roles
+  Wrong redirects on login
+
+PRIORITY 3 — Fix data errors:
+  Hardcoded/random data in responses
+  Wrong field names in responses
+  Missing joins in queries
+  Stock not updating
+
+PRIORITY 4 — Fix frontend errors:
+  Blank/undefined in UI
+  Charts not rendering
+  Filters not working
+  Modals not opening/closing
+
+PRIORITY 5 — Fix integration errors:
+  Cross-system data not syncing
+  Audit logs not written
+  Health flags not set
+
+PRIORITY 6 — Fix edge cases:
+  Empty states crashing
+  Invalid input not rejected
+  Out of stock items orderable
+
+══════════════════════════════════════
+AFTER FIXING — VERIFY CHECKLIST:
+══════════════════════════════════════
+
+After ALL fixes applied, run these
+final checks before declaring done:
+
+□ python -c "from app import app; print('OK')"
+  → No import errors
+
+□ alembic upgrade head
+  → No migration errors
+
+□ curl http://localhost:8000/api/auth/login
+  → Returns JSON not HTML error page
+
+□ Open browser console on every page
+  → Zero red errors
+
+□ Check Network tab on every page
+  → Zero 404, 500 responses
+
+□ Place one complete test order:
+  Register → Profile → Order → Check admin
+  → All steps complete without error
+
+□ Run integration test 1-6 again:
+  → All 6 pass
+
+□ Check audit_logs table:
+  → Has entries for all actions taken
+
+IF ALL ABOVE PASS:
+  Application is fixed and ready ✅
+
+IF ANY STILL FAIL:
+  Return to error type lookup above
+  Find the matching error type
+  Apply the fix
+  Re-verify
+
+══════════════════════════════════════
+OUTPUT FORMAT FOR EACH FIX:
+══════════════════════════════════════
+
+For every error you fix, document it:
+
+FIX #[N]:
+  Test that was failing: [TEST ID]
+  Error message:         [exact error]
+  Root cause:            [what caused it]
+  File changed:          [filename]
+  Change made:           [what you changed]
+  Verified by:           [re-run test result]
+  Status:                ✅ FIXED
+
+Example:
+  FIX #1:
+  Test:       U-MENU-2
+  Error:      500 - AttributeError:
+              'Order' has no attribute 'status'
+  Root cause: 'status' column missing from
+              Order model in models.py
+  File:       backend/models.py
+  Change:     Added status = Column(String,
+              default='pending') to Order class
+              Ran alembic migration
+  Verified:   POST /api/menu/order → 200 ✅
+  Status:     ✅ FIXED

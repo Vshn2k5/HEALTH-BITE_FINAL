@@ -1,0 +1,1754 @@
+
+### HealthBite Smart Canteen — Full Integration
+
+---
+
+## 🗓️ WEEK 1 — FIX THE FOUNDATION
+### Goal: One database, correct models, working data layer
+
+---
+
+### MONDAY — Database Migration
+
+```
+MORNING (3 hours):
+
+TASK 1: Install PostgreSQL
+  Download + install PostgreSQL 16
+  Create database:
+    CREATE DATABASE healthbite;
+    CREATE USER canteen_admin WITH PASSWORD 'yourpass';
+    GRANT ALL ON DATABASE healthbite TO canteen_admin;
+
+TASK 2: Update backend/database.py
+  REMOVE: sqlite connection
+  ADD:
+    SQLALCHEMY_DATABASE_URL =
+      "postgresql://canteen_admin:yourpass
+       @localhost/healthbite"
+    engine = create_engine(DATABASE_URL)
+
+TASK 3: Install new packages
+  pip install psycopg2-binary
+  pip install alembic
+  pip install python-dotenv
+
+TASK 4: Update .env file
+  DATABASE_URL=postgresql://canteen_admin:
+    yourpass@localhost/healthbite
+  JWT_SECRET_KEY=very-long-random-secret-here
+  JWT_EXPIRE_MINUTES=1440
+
+AFTERNOON (3 hours):
+
+TASK 5: Setup Alembic
+  alembic init alembic
+  Edit alembic.ini:
+    sqlalchemy.url = (read from .env)
+  Edit alembic/env.py:
+    Import all models
+    Set target_metadata = Base.metadata
+
+TASK 6: Test connection
+  python -c "from database import engine;
+    print('Connected OK')"
+
+DELIVERABLE BY EOD:
+  ✅ PostgreSQL running
+  ✅ Connection string working
+  ✅ Alembic configured
+  ✅ Can connect from Python
+```
+
+---
+
+### TUESDAY — Fix All Models
+
+```
+MORNING (4 hours):
+
+TASK 1: Rewrite models.py completely
+  Keep existing User, HealthProfile,
+    Order, DailyLog
+  ADD to User:
+    risk_level    String default='low'
+    risk_score    Float  default=0.0
+    conditions    String default='[]'
+    dietary_prefs String default='[]'
+    status        String default='active'
+    joined_at     DateTime default=now()
+    last_active   DateTime nullable
+
+  ADD to Order:
+    order_number  Integer autoincrement
+    status        String default='pending'
+    payment_method String nullable
+    delivery_type  String default='pickup'
+    special_instructions String nullable
+    updated_at    DateTime nullable
+  REMOVE from Order:
+    items column (replaced by OrderItem)
+  RENAME:
+    total_price → total
+
+TASK 2: Create NEW models
+
+  class OrderItem:
+    id          Integer PK
+    order_id    FK → orders
+    food_id     Integer
+    food_name   String
+    qty         Integer
+    unit_price  Float
+    subtotal    Float
+    health_flag Boolean default=False
+
+  class FoodItem:
+    id          Integer PK autoincrement
+    name        String unique
+    category    String
+    calories    Float
+    sugar       Float
+    protein     Float
+    fat         Float default=0
+    sodium      Float default=0
+    carbs       Float default=0
+    price       Float
+    image_emoji String default='🍽️'
+    description String nullable
+    available   Boolean default=True
+    created_at  DateTime default=now()
+    updated_at  DateTime nullable
+
+  class Inventory:
+    id            Integer PK
+    food_id       FK → food_items UNIQUE
+    current_stock Integer default=100
+    reorder_level Integer default=10
+    last_updated  DateTime default=now()
+
+  class AuditLog:
+    id             Integer PK
+    admin_id       FK → users nullable
+    action_type    String
+    target_table   String
+    target_id      String nullable
+    summary        String
+    payload        String (JSON)
+    payload_before String (JSON) nullable
+    payload_after  String (JSON) nullable
+    ip_address     String nullable
+    user_agent     String nullable
+    timestamp      DateTime default=now()
+
+  class AiRecommendationLog:
+    id          Integer PK
+    user_id     FK → users
+    food_id     Integer nullable
+    food_name   String
+    reason      String nullable
+    confidence  Float nullable
+    user_action String default='no_response'
+    created_at  DateTime default=now()
+
+AFTERNOON (2 hours):
+
+TASK 3: Run migration
+  alembic revision --autogenerate
+    -m "complete_schema_v2"
+  alembic upgrade head
+
+TASK 4: Verify all tables created
+  Open pgAdmin or psql
+  \dt → list all tables
+  Must see: users, health_profiles,
+    orders, order_items, food_items,
+    inventory, audit_logs,
+    ai_recommendation_logs, daily_logs
+
+DELIVERABLE BY EOD:
+  ✅ All tables in PostgreSQL
+  ✅ All new columns present
+  ✅ Foreign keys correct
+  ✅ Migration file saved
+```
+
+---
+
+### WEDNESDAY — Seed Data + Fix Health Route
+
+```
+MORNING (3 hours):
+
+TASK 1: Create seed script
+  FILE: backend/scripts/seed_foods.py
+
+  Take all 30 items from old FOOD_ITEMS list
+  in menu.py and insert into food_items table:
+
+  FOODS = [
+    { name:"Margherita Pizza",
+      category:"Meals", price:250,
+      calories:650, sugar:8,
+      protein:15, sodium:1200,
+      carbs:80, image_emoji:"🍕",
+      description:"Fresh mozzarella..." },
+    ... all 30 items ...
+  ]
+
+  for f in FOODS:
+    food = FoodItem(**f)
+    db.add(food)
+    db.flush()
+    inv = Inventory(food_id=food.id,
+      current_stock=100,
+      reorder_level=10)
+    db.add(inv)
+  db.commit()
+
+  Run: python scripts/seed_foods.py
+  Verify: 30 rows in food_items
+          30 rows in inventory
+
+TASK 2: Create admin seed script
+  FILE: backend/scripts/seed_admin.py
+  Create default SUPER_ADMIN user:
+    email: admin@healthbite.com
+    password: Admin@123
+    role: SUPER_ADMIN
+    status: active
+
+AFTERNOON (3 hours):
+
+TASK 3: Fix backend/health.py
+  AFTER saving health profile
+  ADD this code:
+
+  def sync_user_risk(db, user_id, diseases):
+    count = len(diseases)
+    if count == 0:
+      risk_level = 'low'
+      risk_score = 10.0
+    elif count <= 2:
+      risk_level = 'moderate'
+      risk_score = 45.0
+    else:
+      risk_level = 'high'
+      risk_score = 75.0
+
+    user = db.query(User).filter_by(
+      id=user_id).first()
+    user.conditions = json.dumps(diseases)
+    user.risk_level = risk_level
+    user.risk_score = risk_score
+    user.last_active = datetime.now()
+    db.commit()
+
+  Call sync_user_risk() after every
+  health profile create + update.
+
+TASK 4: Test health profile sync
+  Create user → set health profile
+    with ["Diabetes", "Hypertension"]
+  Check users table:
+    conditions = '["Diabetes","Hypertension"]'
+    risk_level = 'moderate'
+    risk_score = 45.0
+
+DELIVERABLE BY EOD:
+  ✅ 30 food items in database
+  ✅ 30 inventory rows
+  ✅ Admin user created
+  ✅ Health profile syncs to user table
+```
+
+---
+
+### THURSDAY — Fix Menu + Order Routes
+
+```
+MORNING (4 hours):
+
+TASK 1: Rewrite menu.py GET /intelligent
+  REMOVE: FOOD_ITEMS hardcoded list
+  ADD: Read from database
+
+  @router.get("/intelligent")
+  async def get_intelligent_menu(db, user):
+    profile = get_user_profile(db, user.id)
+    diseases = json.loads(
+      user.conditions or '[]')
+
+    foods = db.query(FoodItem).join(
+      Inventory
+    ).filter(
+      FoodItem.available == True,
+      Inventory.current_stock > 0
+    ).all()
+
+    results = []
+    for food in foods:
+      score = ai_engine.score_food(
+        food, diseases, profile)
+      tag = get_food_tag(food)
+      results.append({
+        "id":       food.id,
+        "name":     food.name,
+        "price":    food.price,
+        "calories": food.calories,
+        "sugar":    food.sugar,
+        "protein":  food.protein,
+        "image":    food.image_emoji,
+        "tag":      tag,
+        "match_score": score,
+        "stock":    food.inventory.current_stock
+      })
+
+    results.sort(
+      key=lambda x: x['match_score'],
+      reverse=True)
+    return results
+
+TASK 2: Rewrite menu.py POST /order
+  REMOVE: old simple order creation
+  ADD: full order with stock check
+
+  @router.post("/order")
+  async def place_order(order_data, db, user):
+
+    # Step 1: Validate all items
+    diseases = json.loads(
+      user.conditions or '[]')
+    items_detail = []
+
+    for item in order_data.items:
+      food = db.query(FoodItem).filter_by(
+        id=item.food_id).first()
+      if not food:
+        raise error f"{item.food_id} not found"
+      if not food.available:
+        raise error f"{food.name} unavailable"
+      inv = food.inventory
+      if inv.current_stock < item.qty:
+        raise error f"{food.name} out of stock"
+      items_detail.append((food, inv, item.qty))
+
+    # Step 2: Create order
+    total = sum(
+      f.price * q for f,_,q in items_detail)
+    order = Order(
+      user_id=user.id,
+      total=total,
+      status='pending',
+      payment_method=order_data.payment_method
+    )
+    db.add(order)
+    db.flush()
+
+    # Step 3: Create order items + update stock
+    for food, inv, qty in items_detail:
+      flag = check_health_flag(food, diseases)
+      item = OrderItem(
+        order_id   = order.id,
+        food_id    = food.id,
+        food_name  = food.name,
+        qty        = qty,
+        unit_price = food.price,
+        subtotal   = food.price * qty,
+        health_flag = flag
+      )
+      db.add(item)
+      inv.current_stock -= qty
+      inv.last_updated = datetime.now()
+
+    db.commit()
+    return {"order_id": order.id,
+            "status": "pending",
+            "total": total}
+
+AFTERNOON (2 hours):
+
+TASK 3: Add health flag logic
+  def check_health_flag(food, diseases):
+    if 'Diabetes' in diseases:
+      if food.sugar > 15: return True
+    if 'Hypertension' in diseases:
+      if food.sodium > 1000: return True
+    if 'Obesity' in diseases:
+      if food.calories > 700: return True
+    if 'Heart Disease' in diseases:
+      if food.fat > 20: return True
+    return False
+
+TASK 4: Test full order flow
+  Login as user
+  GET /api/menu/intelligent → foods from DB
+  POST /api/menu/order → creates order
+  Check orders table: status='pending'
+  Check order_items table: 2 rows
+  Check inventory: stock reduced
+
+DELIVERABLE BY EOD:
+  ✅ Menu reads from database
+  ✅ Orders create properly
+  ✅ Stock decrements on order
+  ✅ Health flags set correctly
+```
+
+---
+
+### FRIDAY — Fix Analytics + Security
+
+```
+MORNING (3 hours):
+
+TASK 1: Fix analytics.py
+  REMOVE: all random.randint() calls
+  REWRITE:
+
+  GET /api/analytics/nutrition:
+    orders = db.query(Order).join(OrderItem)\
+      .filter(Order.user_id == user.id,
+              Order.created_at >= 7_days_ago)\
+      .all()
+
+    Group by date, sum nutrition values
+    from actual order_items
+
+  GET /api/analytics/risk:
+    diseases = json.loads(user.conditions or '[]')
+    return real risk list based on
+      user's actual conditions
+
+  GET /api/analytics/prediction:
+    Analyze last 7 days real orders
+    Compare against disease limits
+    Return real predictions
+
+TASK 2: Remove security backdoor
+  FILE: backend/dependencies.py
+  DELETE:
+    if token == "fake-jwt-token":
+      user = db.query(User)...
+      return user
+
+TASK 3: Fix token expiry
+  FILE: backend/auth.py
+  ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+
+AFTERNOON (3 hours):
+
+TASK 4: Fix admin_analytics.py
+  REMOVE: hardcoded numbers
+  REWRITE: real DB queries
+
+TASK 5: Test entire Week 1 work
+  Register new user
+  Set health profile (Diabetes)
+  Order 3 foods
+  Check: stock reduced correctly
+  Check: health flags on items with sugar
+  Check: analytics shows real data
+  Check: user.conditions populated
+  Check: user.risk_level = 'moderate'
+
+TASK 6: Fix any bugs found in testing
+
+DELIVERABLE BY EOD:
+  ✅ Analytics shows real data
+  ✅ Security backdoor removed
+  ✅ Token expires in 24 hours
+  ✅ Full user flow tested end-to-end
+  ✅ Week 1 COMPLETE
+```
+
+---
+---
+
+## 🗓️ WEEK 2 — BUILD ADMIN BACKEND
+### Goal: All 9 admin API route groups built in FastAPI
+
+---
+
+### MONDAY — Admin Foundation + Dashboard Routes
+
+```
+MORNING (3 hours):
+
+TASK 1: Create folder structure
+  backend/
+  └── admin/
+       ├── __init__.py
+       ├── dependencies.py
+       ├── audit_helper.py
+       ├── dashboard.py
+       ├── foods.py
+       ├── inventory.py
+       ├── orders.py
+       ├── users.py
+       ├── analytics.py
+       ├── ai_monitor.py
+       ├── reports.py
+       └── audit.py
+
+TASK 2: Create admin/dependencies.py
+  async def get_current_admin(
+    token = Depends(oauth2_scheme),
+    db    = Depends(get_db)
+  ):
+    user = decode_jwt(token, db)
+    if user.role not in [
+      'SUPER_ADMIN','MANAGER','ANALYST'
+    ]:
+      raise HTTPException(403,
+        "Admin access required")
+    update_last_active(user, db)
+    return user
+
+  def require_role(*roles):
+    async def checker(
+      admin = Depends(get_current_admin)
+    ):
+      if admin.role not in roles:
+        raise HTTPException(403,
+          "Insufficient permissions")
+      return admin
+    return Depends(checker)
+
+  def require_min_role(min_role):
+    HIERARCHY = {
+      'ANALYST':4, 'MANAGER':3,
+      'SUPER_ADMIN':2, 'USER':99
+    }
+    async def checker(
+      admin = Depends(get_current_admin)
+    ):
+      if HIERARCHY[admin.role] > \
+         HIERARCHY[min_role]:
+        raise HTTPException(403,
+          "Insufficient permissions")
+      return admin
+    return Depends(checker)
+
+TASK 3: Create admin/audit_helper.py
+  def log_action(db, admin_id, action_type,
+    target_table, target_id, summary,
+    payload=None, before=None,
+    after=None, ip=None):
+    try:
+      log = AuditLog(
+        admin_id       = admin_id,
+        action_type    = action_type,
+        target_table   = target_table,
+        target_id      = str(target_id or ''),
+        summary        = summary,
+        payload        = json.dumps(payload or {}),
+        payload_before = json.dumps(before or {}),
+        payload_after  = json.dumps(after or {}),
+        ip_address     = ip
+      )
+      db.add(log)
+      db.commit()
+    except Exception as e:
+      print(f"Audit log failed: {e}")
+      # Never raise — audit failure never
+      # breaks the main request
+
+AFTERNOON (3 hours):
+
+TASK 4: Build admin/dashboard.py
+  router = APIRouter(prefix="/api/admin")
+
+  GET /overview
+  GET /analytics/orders-by-hour-today
+  GET /analytics/sales
+  GET /analytics/top-items
+  GET /alerts
+
+  Same logic as Flask Week 2 Day 1
+  but FastAPI syntax
+
+TASK 5: Register in app.py
+  from admin.dashboard import router as dash_r
+  app.include_router(dash_r)
+
+TASK 6: Test with Postman/curl
+  POST /api/auth/login
+    email: admin@healthbite.com
+    password: Admin@123
+  Copy token
+  GET /api/admin/overview
+    with Authorization: Bearer {token}
+  Must return 200 with real data
+
+DELIVERABLE BY EOD:
+  ✅ Admin dependencies working
+  ✅ Audit helper working
+  ✅ Dashboard 5 endpoints live
+  ✅ Role check blocks USER role
+```
+
+---
+
+### TUESDAY — Foods + Inventory Routes
+
+```
+MORNING (3 hours):
+
+TASK 1: Build admin/foods.py
+  router = APIRouter(prefix="/api/admin")
+
+  GET    /foods         → all food items + inventory
+  POST   /foods         → create food + inventory row
+  PUT    /foods/{id}    → update food item
+  DELETE /foods/{id}    → delete (check pending orders)
+  PUT    /foods/{id}/availability → toggle
+
+  Each write endpoint:
+    Validates input
+    Calls log_action() after commit
+    Returns standardized response
+
+AFTERNOON (3 hours):
+
+TASK 2: Build admin/inventory.py
+  GET /inventory       → all items + summary
+  PUT /inventory/{food_id} → update stock
+
+TASK 3: Register both in app.py
+  from admin.foods     import router as food_r
+  from admin.inventory import router as inv_r
+  app.include_router(food_r)
+  app.include_router(inv_r)
+
+TASK 4: Test
+  POST /api/admin/foods → create new food
+  GET  /api/admin/foods → see it in list
+  User opens menu → sees new food
+  PUT  /api/admin/foods/{id}/availability
+    → toggle off
+  User opens menu → food gone
+
+DELIVERABLE BY EOD:
+  ✅ Food CRUD working
+  ✅ Inventory CRUD working
+  ✅ Admin food change reflects on user menu
+  ✅ Audit logs written for all changes
+```
+
+---
+
+### WEDNESDAY — Orders + Users Routes
+
+```
+MORNING (3 hours):
+
+TASK 1: Build admin/orders.py
+  router = APIRouter(prefix="/api/admin")
+
+  GET /orders          → all orders + summary
+    Query params: status filter
+    Join: User, OrderItem, FoodItem
+    Return full order detail
+
+  PUT /orders/{id}/status
+    Validates transition:
+      only pending → completed/cancelled
+    Updates status
+    Logs audit trail
+    Returns updated order
+
+AFTERNOON (3 hours):
+
+TASK 2: Build admin/users.py
+  GET /users           → all users + stats
+    Join: Order for order stats
+    Join: AiRecommendationLog for AI stats
+    Returns all with health data
+
+  PUT /users/{id}      → role OR status change
+    Role change: SUPER_ADMIN only
+    Status change: any MANAGER+
+    Protections:
+      Cannot deactivate self
+      Cannot remove last SUPER_ADMIN
+
+TASK 3: Register + test
+  Place order as user
+  Admin sees order as "Pending"
+  Admin marks as "Completed"
+  User order history shows "Completed"
+
+DELIVERABLE BY EOD:
+  ✅ Orders list with full detail
+  ✅ Status change working
+  ✅ Users list with health data
+  ✅ Role/status change working
+  ✅ Both sides synced through DB
+```
+
+---
+
+### THURSDAY — Analytics Routes (All 10)
+
+```
+MORNING (4 hours):
+
+TASK 1: Build admin/analytics.py
+  All 10 endpoints:
+
+  GET /analytics/summary
+    Revenue, orders, avg value, new users
+    With change vs previous period
+
+  GET /analytics/sales
+    Date-grouped revenue + order count
+    Supports ?period=7d/30d/90d
+
+  GET /analytics/revenue-by-category
+    5 categories always returned
+
+  GET /analytics/popular-foods
+    Top 10 by quantity sold
+
+  GET /analytics/category-heatmap
+    5×7 matrix (category × day of week)
+
+  GET /analytics/disease-distribution
+    UNNEST user.conditions
+    Count per disease
+
+  GET /analytics/risk-trends
+    Group by month + risk_level
+
+  GET /analytics/peak-hours
+    24-hour order distribution
+
+  GET /analytics/top-spenders
+    Top 5 users by spend
+
+  GET /analytics/ai-impact
+    Recommendation stats
+
+AFTERNOON (2 hours):
+
+TASK 2: Register + test
+  Seed some test orders for multiple
+    days so charts have real data
+  Test each endpoint returns real data
+  Verify no random() calls anywhere
+
+TASK 3: Test date filtering
+  ?from=2025-01-01&to=2025-02-28
+  All charts filter correctly
+
+DELIVERABLE BY EOD:
+  ✅ All 10 analytics endpoints live
+  ✅ Real data in every chart
+  ✅ Date filtering working
+  ✅ Disease distribution using real conditions
+```
+
+---
+
+### FRIDAY — AI Monitor + Reports + Audit
+
+```
+MORNING (3 hours):
+
+TASK 1: Build admin/ai_monitor.py
+  GET  /ai/status           → model status
+  GET  /ai/features         → feature importance
+  GET  /ai/accuracy-history → training history
+  GET  /ai/logs             → rec logs paginated
+  GET  /ai/training-history → past retrains
+  POST /ai/retrain          → trigger retrain
+
+  For retrain: use asyncio background task
+    (FastAPI uses BackgroundTasks)
+    from fastapi import BackgroundTasks
+    @router.post("/ai/retrain")
+    async def retrain(
+      background_tasks: BackgroundTasks,
+      admin = Depends(require_role('SUPER_ADMIN'))
+    ):
+      background_tasks.add_task(
+        run_retrain_task, db)
+      return {"status": "retraining"}
+
+TASK 2: Build admin/reports.py
+  6 endpoints: preview + export for
+    sales, health, inventory
+  CSV using Python csv module
+  PDF using reportlab
+
+TASK 3: Build admin/audit.py
+  GET /audit/summary → counts + last action
+  GET /audit/admins  → admin filter list
+  GET /audit         → paginated logs
+    All server-side filters
+
+AFTERNOON (3 hours):
+
+TASK 4: Register all remaining routers
+  app.include_router(analytics_r)
+  app.include_router(ai_r)
+  app.include_router(reports_r)
+  app.include_router(audit_r)
+
+TASK 5: Test full admin backend
+  All 40+ endpoints hit with Postman
+  Every endpoint returns real data
+  Role protection verified on each
+
+DELIVERABLE BY EOD:
+  ✅ All 40+ admin endpoints live
+  ✅ Reports generate real CSV + PDF
+  ✅ Audit logs written everywhere
+  ✅ AI retrain runs in background
+  ✅ Week 2 COMPLETE
+```
+
+---
+---
+
+## 🗓️ WEEK 3 — CONNECT FRONTENDS
+### Goal: Both user + admin UIs talk to one backend
+
+---
+
+### MONDAY — Fix Admin Frontend URLs
+
+```
+MORNING (3 hours):
+
+TASK 1: Update API base URL in all admin pages
+  In each admin HTML file (all 9 pages)
+  Find the API config at top of <script>
+
+  ADD global config file:
+  FILE: frontend/admin/assets/js/config.js
+
+    const HOSTNAME = window.location.hostname
+      || '127.0.0.1';
+    const ADMIN_API = `http://${HOSTNAME}:8000
+      /api/admin`;
+    const AUTH_API  = `http://${HOSTNAME}:8000
+      /api/auth`;
+
+  Link in every admin HTML:
+    <script src="../assets/js/config.js"></script>
+
+  Replace ALL hardcoded URLs in admin pages:
+    http://localhost:5000/api/admin/...
+    → ${ADMIN_API}/...
+
+TASK 2: Fix admin auth token key
+  Admin pages use: 'admin_token'
+  User pages use:  'token'
+  Check every admin page sends:
+    headers: {
+      'Authorization': `Bearer ${
+        localStorage.getItem('admin_token')}`
+    }
+
+AFTERNOON (3 hours):
+
+TASK 3: Fix admin auth guard on all 9 pages
+  Top of every admin page script:
+    const adminToken = localStorage
+      .getItem('admin_token');
+    if (!adminToken) {
+      window.location.href =
+        '../../user/index.html';
+    }
+
+TASK 4: Test admin pages load with real data
+  Dashboard → KPI cards show real numbers
+  Food Management → shows DB food items
+  Inventory → shows real stock levels
+  Orders → shows real orders
+
+DELIVERABLE BY EOD:
+  ✅ All admin pages hit correct API
+  ✅ Auth guard on all 9 pages
+  ✅ Real data appearing on all pages
+```
+
+---
+
+### TUESDAY — Fix Login Bridge
+
+```
+MORNING (3 hours):
+
+TASK 1: Fix script.js login redirect
+  FILE: frontend/user/script.js
+
+  FIND: if (data.role === "ADMIN")
+  REPLACE WITH:
+    const ADMIN_ROLES = [
+      'SUPER_ADMIN','MANAGER','ANALYST'
+    ];
+
+    if (ADMIN_ROLES.includes(data.role)) {
+      // Store admin token separately
+      localStorage.setItem(
+        'admin_token', data.token);
+      localStorage.setItem(
+        'admin_role', data.role);
+      localStorage.setItem(
+        'admin_name', data.name);
+      // Redirect to admin panel
+      window.location.href =
+        '../admin/pages/dashboard.html';
+    } else {
+      // Regular user flow
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', data.role);
+      // Check if health profile exists
+      fetch(`${API_ROOT}/health/check`, ...)
+    }
+
+TASK 2: Add admin logout in admin pages
+  In every admin page sidebar logout button:
+    function adminLogout() {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_role');
+      localStorage.removeItem('admin_name');
+      window.location.href =
+        '../../user/index.html';
+    }
+
+TASK 3: Serve both frontends from FastAPI
+  FILE: backend/app.py
+  ADD:
+    app.mount("/user",
+      StaticFiles(
+        directory="../frontend/user"),
+      name="user_frontend")
+    app.mount("/admin",
+      StaticFiles(
+        directory="../frontend/admin"),
+      name="admin_frontend")
+
+    @app.get("/")
+    async def root():
+      return FileResponse(
+        "../frontend/user/index.html")
+
+AFTERNOON (3 hours):
+
+TASK 4: Test the complete login flow
+  Open: http://localhost:8000
+  Login as USER → goes to user dashboard
+  Login as SUPER_ADMIN → goes to admin panel
+  Logout from admin → back to login page
+  Token check: admin_token in localStorage
+
+TASK 5: Test all admin nav links work
+  Dashboard → Food Management → Inventory
+  → Orders → Users → Analytics
+  → AI Monitoring → Reports → Audit Logs
+  All pages load without 404
+
+DELIVERABLE BY EOD:
+  ✅ Login correctly routes user vs admin
+  ✅ Both frontends served by one server
+  ✅ Admin logout returns to login
+  ✅ No 404 on any page navigation
+```
+
+---
+
+### WEDNESDAY — Fix User Frontend Pages
+
+```
+MORNING (3 hours):
+
+TASK 1: Fix full-menu.html
+  Remove any references to hardcoded food
+  Ensure API call returns new DB format:
+    food.id (integer, not 101/102)
+    food.image_emoji instead of food.image
+    food.available check
+    food.stock shown
+
+  Fix "Add to Cart" → sends food.id
+  Fix order submission format:
+    items: [{ food_id: X, qty: Y }]
+    payment_method: 'cash'
+
+TASK 2: Fix orders.html
+  Current shows: items as JSON string
+  Change to: proper item breakdown table
+    order_items with food_name, qty, price
+
+TASK 3: Fix health-analytics.html
+  Remove: charts using random data
+  Connect to real endpoints
+  Verify charts show actual order history
+
+AFTERNOON (3 hours):
+
+TASK 4: Fix user.html dashboard
+  Currently shows static/mock data
+  Connect all stats to real API calls
+
+TASK 5: Fix health-assistant.html chatbot
+  After recommendation shown:
+    Log to AiRecommendationLog
+  Add action buttons:
+    "Order This" → POST recommendation-action
+    { action: 'accepted' }
+
+TASK 6: Test user flow end to end
+  Register → set profile → browse menu
+  → order food → view order history
+  → check analytics → chat with bot
+
+DELIVERABLE BY EOD:
+  ✅ Menu shows DB food items
+  ✅ Orders show item breakdown
+  ✅ Analytics shows real data
+  ✅ Chatbot logs recommendations
+  ✅ Complete user flow works
+```
+
+---
+
+### THURSDAY — Integration Testing
+
+```
+MORNING (4 hours):
+
+TEST 1 — User → Admin: Registration
+  Register new user on user frontend
+  Open admin Users page
+  ✅ User appears in table
+  ✅ joined_at correct
+  ✅ risk_level = 'low' (no conditions)
+
+TEST 2 — Profile → Analytics: Conditions
+  User sets conditions: Diabetes + Hypertension
+  Open admin Analytics → Disease Distribution
+  ✅ Diabetes count incremented
+  ✅ Hypertension count incremented
+  Open admin Users → find user
+  ✅ risk_level = 'moderate'
+  ✅ conditions show in health modal
+
+TEST 3 — Order → Inventory: Stock
+  User orders 3x Margherita Pizza
+  Open admin Inventory
+  ✅ Margherita Pizza stock reduced by 3
+  Open admin Orders
+  ✅ Order shows as Pending
+  ✅ Order items show correctly
+  ✅ Health flag shown if diabetic user
+     ordered high-sugar items
+
+TEST 4 — Admin → User: Food Availability
+  Admin toggles "Chocolate Cake" OFF
+  User refreshes menu
+  ✅ Chocolate Cake not visible
+  Admin toggles it ON
+  User refreshes menu
+  ✅ Chocolate Cake visible again
+
+AFTERNOON (3 hours):
+
+TEST 5 — Admin → User: Order Status
+  Admin marks pending order as Completed
+  User opens order history
+  ✅ Shows as Completed
+
+TEST 6 — AI Recommendations
+  User opens menu
+  Open admin AI Monitoring → Logs
+  ✅ Recommendation log entries appear
+  User clicks "Order This" on rec
+  ✅ Log updates to 'accepted'
+  Acceptance rate updates in AI stats
+
+TEST 7 — Audit Trail
+  Admin adds a food item
+  Admin edits stock
+  Admin deactivates a user
+  Open Audit Logs page
+  ✅ 3 entries: CREATE, UPDATE, UPDATE
+  ✅ Admin name shown on each
+  ✅ Before/After JSON in payload
+
+TEST 8 — Analytics Real Data
+  Ensure at least 20 orders in DB
+  Open admin Analytics page
+  ✅ Revenue chart shows real numbers
+  ✅ Popular foods chart accurate
+  ✅ Heatmap shows real day patterns
+  ✅ Peak hours chart correct
+
+DELIVERABLE BY EOD:
+  ✅ All 8 integration tests PASSED
+  ✅ No hardcoded data anywhere
+  ✅ Both sides in sync
+```
+
+---
+
+### FRIDAY — Bug Fixes + Polish
+
+```
+MORNING (3 hours):
+
+TASK 1: Fix all bugs from Thursday tests
+  Document every failed test
+  Fix one by one
+  Re-test each fix
+
+TASK 2: Console error audit
+  Open every page (user + admin)
+  Check DevTools Console
+  Zero red errors allowed
+
+TASK 3: Network tab audit
+  Every page: all API calls return 200
+  No calls returning 404 or 500
+  All responses have correct data shape
+
+AFTERNOON (3 hours):
+
+TASK 4: Edge case testing
+  Empty states:
+    Orders with no orders
+    Menu with all items out of stock
+    Analytics with no data in range
+    AI logs empty table
+  Very long data:
+    Food name 100 chars → truncates
+    Order with 10 items → shows correctly
+
+TASK 5: RBAC testing
+  Login as ANALYST:
+    Cannot add/edit/delete foods
+    Cannot change order status
+    Cannot deactivate users
+    Can view all pages
+  Login as MANAGER:
+    Can add/edit/delete foods
+    Cannot change user roles
+  Login as SUPER_ADMIN:
+    Everything accessible
+
+DELIVERABLE BY EOD:
+  ✅ All bugs fixed
+  ✅ Zero console errors
+  ✅ All RBAC rules enforced
+  ✅ Edge cases handled
+  ✅ Week 3 COMPLETE
+```
+
+---
+---
+
+## 🗓️ WEEK 4 — REAL AI + CHATBOT UPGRADE
+### Goal: Make AI system actually intelligent with real data
+
+---
+
+### MONDAY — Fix AI Recommendation Engine
+
+```
+MORNING (4 hours):
+
+TASK 1: Upgrade chatbot_engine.py
+  Connect to real food database
+  Remove hardcoded FOOD_ITEMS parameter
+  Read foods from DB at query time
+
+  Add real scoring logic:
+    def score_food(food, user_diseases,
+                   user_history):
+      score = 100.0
+
+      for disease in user_diseases:
+        if disease == 'Diabetes':
+          if food.sugar > 15:
+            score -= 40
+          elif food.sugar > 8:
+            score -= 20
+          elif food.sugar == 0:
+            score += 10
+
+        if disease == 'Hypertension':
+          if food.sodium > 1000:
+            score -= 35
+          elif food.sodium > 600:
+            score -= 15
+
+        if disease == 'Obesity':
+          if food.calories > 700:
+            score -= 30
+          elif food.calories < 300:
+            score += 15
+            
+        if disease == 'Heart Disease':
+          if food.fat > 20:
+            score -= 40
+          elif food.protein > 25:
+            score += 10
+
+      # Boost if ordered before + liked
+      if food.id in user_history:
+        score += 5
+
+      return max(0, min(100, score))
+
+AFTERNOON (2 hours):
+
+TASK 2: Fix GET /api/menu/intelligent
+  Use new score_food() function
+  Return foods sorted by real score
+  Include confidence: score/100
+
+TASK 3: Log every recommendation
+  After scoring, for top 5 returned:
+    Create AiRecommendationLog:
+      user_id = current_user.id
+      food_id = food.id
+      food_name = food.name
+      confidence = score/100
+      reason = build_reason(food, diseases)
+
+  def build_reason(food, diseases):
+    reasons = []
+    for d in diseases:
+      if d == 'Diabetes' and food.sugar < 5:
+        reasons.append("Low sugar for Diabetes")
+      if d == 'Hypertension' and
+        food.sodium < 500:
+        reasons.append("Low sodium for BP")
+    return ', '.join(reasons) or "Good nutrition profile"
+
+DELIVERABLE BY EOD:
+  ✅ Real scoring based on conditions
+  ✅ Every recommendation logged
+  ✅ Reasons generated per disease
+```
+
+---
+
+### TUESDAY — Fix Chatbot Intelligence
+
+```
+MORNING (3 hours):
+
+TASK 1: Connect chatbot to real food DB
+  When user asks "is pizza safe for me":
+    Query FoodItem WHERE name LIKE '%pizza%'
+    Run score_food() against that food
+    Return real analysis, not hardcoded text
+
+TASK 2: Connect chatbot to real order history
+  When user asks "my analytics" or "my stats":
+    Query real orders for this user
+    Calculate real: avg calories, sugar trends
+    Return real insights
+
+TASK 3: Fix chatbot recommendation logging
+  When chatbot recommends a food:
+    Create AiRecommendationLog entry
+  When user clicks "Order This" in chat:
+    Update log.user_action = 'accepted'
+
+AFTERNOON (3 hours):
+
+TASK 4: Add POST /api/chatbot/recommendation-action
+  Body: { log_id, action }
+  Update AiRecommendationLog.user_action
+  Used by chatbot UI "Order This" button
+
+TASK 5: Test chatbot with real data
+  User with Diabetes:
+    Ask: "what should I eat?"
+    → Must recommend low-sugar foods
+    → Must warn about high-sugar items
+  User with no conditions:
+    Ask: "what should I eat?"
+    → General healthy recommendations
+
+DELIVERABLE BY EOD:
+  ✅ Chatbot reads real food from DB
+  ✅ Analysis based on real conditions
+  ✅ Real stats in analytics responses
+  ✅ Recommendation actions logged
+```
+
+---
+
+### WEDNESDAY — Admin AI Monitoring Live Data
+
+```
+MORNING (3 hours):
+
+TASK 1: Verify AI Monitoring page live
+  GET /api/admin/ai/logs
+    ✅ Shows real recommendation logs
+    ✅ User names correct
+    ✅ Food names correct
+    ✅ Confidence scores real
+
+  GET /api/admin/analytics/ai-impact
+    ✅ Acceptance rate calculated from real logs
+    ✅ Health improvement rate real
+    ✅ Most recommended food real
+
+TASK 2: Fix AI model status table
+  Create AiModelStatus if not exists:
+    STATUS: active
+    VERSION: v1.0.0
+    ACCURACY: 87.5
+    LAST_TRAINED: today
+
+TASK 3: Test retrain flow end-to-end
+  Admin triggers retrain
+  Status → Retraining (spinning)
+  Frontend polls every 10 seconds
+  After 30s: Status → Active
+  New accuracy shown
+  Feature importance updated
+
+AFTERNOON (3 hours):
+
+TASK 4: Connect real .pkl models to retrain
+  In retrain background task:
+    Load existing food_recommender.pkl
+    Get new training data from orders DB
+    Retrain model on real data
+    Save new .pkl
+    Update AiModelStatus
+
+  If ML pipeline too complex:
+    Keep simulation for now
+    Document for future sprint
+
+TASK 5: Test full AI monitoring page
+  All 6 sections show real data
+  Filters on logs page work
+  Pagination works
+  Feature chart renders
+
+DELIVERABLE BY EOD:
+  ✅ AI monitoring fully connected
+  ✅ Retrain flow works end-to-end
+  ✅ Real recommendation data visible
+```
+
+---
+
+### THURSDAY — Reports + Audit Verification
+
+```
+MORNING (3 hours):
+
+TASK 1: Test all report exports
+  Sales Report Preview:
+    ✅ Shows real orders
+    ✅ "Showing first 10 rows"
+    ✅ Correct date range
+
+  Sales Report CSV Download:
+    ✅ File downloads as .csv
+    ✅ Opens correctly in Excel
+    ✅ Real order data inside
+
+  Sales Report PDF Download:
+    ✅ File downloads as .pdf
+    ✅ Opens with title + table
+    ✅ Professional formatting
+
+  Health Report:
+    ✅ Shows real users + conditions
+    ✅ Anonymize toggle works
+    ✅ CSV + PDF both work
+
+  Inventory Report:
+    ✅ Shows real stock levels
+    ✅ Status column correct
+    ✅ CSV downloads
+
+AFTERNOON (3 hours):
+
+TASK 2: Test audit logs completely
+  Filter by action type: DELETE
+    ✅ Only DELETE actions shown
+  Filter by admin name:
+    ✅ Only that admin's actions
+  Search "food":
+    ✅ All food-related actions shown
+  Date range filter:
+    ✅ Only logs in range shown
+  Expand a log row:
+    ✅ JSON payload visible
+    ✅ Syntax highlighting works
+    ✅ Before/After diff for UPDATE
+    ✅ Copy JSON button works
+
+TASK 3: Verify auto-refresh
+  Toggle auto-refresh ON
+  Perform an admin action
+  Wait 30 seconds
+  ✅ New log appears without manual refresh
+
+DELIVERABLE BY EOD:
+  ✅ All 3 report types download correctly
+  ✅ All audit filters working
+  ✅ Payload viewer working
+  ✅ Auto-refresh working
+```
+
+---
+
+### FRIDAY — Week 4 Complete Review
+
+```
+ALL DAY:
+
+Run complete system test:
+
+  PHASE 1: User journey
+  □ Register new user
+  □ Set health profile (2 conditions)
+  □ Browse intelligent menu
+    (scores based on conditions)
+  □ Order 3 items (1 with health flag)
+  □ Chat with bot about diet
+  □ View order history
+  □ View health analytics (real data)
+
+  PHASE 2: Admin journey
+  □ Login as SUPER_ADMIN
+  □ Dashboard: see new user + order
+  □ Food Management: add new food
+  □ Inventory: adjust stock
+  □ Orders: complete the order
+  □ Users: view user health modal
+  □ Analytics: verify all charts real
+  □ AI Monitoring: check rec logs
+  □ Reports: download all 3 types
+  □ Audit: verify all actions logged
+
+  PHASE 3: Cross-system checks
+  □ User sees order as Completed
+  □ New food visible on user menu
+  □ Stock reduced from order
+  □ Disease in distribution chart
+  □ Chatbot recommends correctly
+
+DELIVERABLE BY EOD:
+  ✅ Complete system working
+  ✅ Both sides fully integrated
+  ✅ AI recommendations real
+  ✅ All data flows verified
+  ✅ Week 4 COMPLETE
+```
+
+---
+---
+
+## 🗓️ WEEK 5 — PRODUCTION HARDENING
+### Goal: Secure, fast, ready for real users
+
+---
+
+### MONDAY — Security Audit
+
+```
+ALL DAY:
+
+TASK 1: JWT Security
+  □ Secret key: 64+ character random string
+  □ Stored only in .env (not in code)
+  □ Different secret for dev vs prod
+  □ Token expiry: 24h user, 8h admin
+  □ No fake-jwt-token backdoor (confirm removed)
+
+TASK 2: CORS Lockdown
+  FILE: backend/app.py
+  CHANGE:
+    allow_origins=["*"]
+  TO:
+    allow_origins=[
+      "http://localhost:8000",
+      "https://yourdomain.com"
+    ]
+
+TASK 3: Input validation everywhere
+  All POST/PUT endpoints:
+    Check required fields present
+    Check string lengths reasonable
+    Check numbers in valid range
+    Return clear error messages
+
+TASK 4: SQL injection check
+  All DB queries use ORM (SQLAlchemy)
+  No raw string SQL anywhere
+  No f-strings in SQL queries
+
+TASK 5: Password security
+  □ bcrypt/pbkdf2 hashing (already done)
+  □ No passwords in any API response
+  □ No passwords in any log
+  □ Password strength enforced on register
+
+TASK 6: Rate limiting
+  pip install slowapi
+  Add rate limits:
+    POST /api/auth/login:    10/minute
+    POST /api/auth/register: 5/minute
+    All /api/admin/*:        100/minute
+
+DELIVERABLE:
+  ✅ Security checklist complete
+  ✅ No vulnerabilities found
+```
+
+---
+
+### TUESDAY — Performance Optimization
+
+```
+ALL DAY:
+
+TASK 1: Add database indexes
+  CREATE INDEX idx_orders_user_id
+    ON orders(user_id);
+  CREATE INDEX idx_orders_status
+    ON orders(status);
+  CREATE INDEX idx_orders_created_at
+    ON orders(created_at);
+  CREATE INDEX idx_audit_admin_id
+    ON audit_logs(admin_id);
+  CREATE INDEX idx_audit_timestamp
+    ON audit_logs(timestamp);
+  CREATE INDEX idx_ai_logs_user_id
+    ON ai_recommendation_logs(user_id);
+
+TASK 2: Add response caching
+  pip install fastapi-cache2
+  Cache: menu items (1 min)
+  Cache: analytics summary (5 min)
+  Cache: disease distribution (10 min)
+  Do NOT cache: orders, inventory, users
+
+TASK 3: Optimize slow queries
+  Test each endpoint response time
+  Any endpoint over 500ms:
+    Add .options(joinedload(...))
+    Remove N+1 query patterns
+    Add pagination where missing
+
+TASK 4: Frontend optimization
+  All admin pages:
+    Chart.js loaded from CDN once
+    Not duplicated across pages
+  Images: lazy loading
+  Font: preconnect to Google Fonts
+
+DELIVERABLE:
+  ✅ All endpoints under 500ms
+  ✅ Database indexes added
+  ✅ No N+1 queries
+```
+
+---
+
+### WEDNESDAY — Error Handling
+
+```
+ALL DAY:
+
+TASK 1: Global error handler in FastAPI
+  @app.exception_handler(Exception)
+  async def global_handler(req, exc):
+    # Log error internally
+    print(f"Error: {exc}")
+    # Return safe message to client
+    return JSONResponse(
+      status_code=500,
+      content={"success": False,
+               "message": "Server error"})
+
+  No stack traces in API responses ever.
+
+TASK 2: Frontend error handling
+  Every fetch() call in every page:
+    try/catch wrapping
+    Network error → "Connection failed" toast
+    401 → redirect to login
+    403 → "Insufficient permissions" toast
+    422 → show validation error toast
+    500 → "Server error. Try again." toast
+    No white blank screens anywhere
+
+TASK 3: Empty state handling
+  Every table on every page:
+    Has empty state message
+    Has appropriate icon
+    Has action button if applicable
+
+TASK 4: Loading state handling
+  Every data load:
+    Shows skeleton/spinner first
+    Replaces with data on success
+    Shows error state on failure
+    Never leaves blank space
+
+DELIVERABLE:
+  ✅ All errors handled gracefully
+  ✅ No stack traces exposed
+  ✅ All empty states designed
+  ✅ All loading states present
+```
+
+---
+
+### THURSDAY — Cross Browser + Mobile Testing
+
+```
+ALL DAY:
+
+TEST IN CHROME:
+  □ All 9 admin pages
+  □ All user pages
+  □ All downloads work
+  □ All charts render
+
+TEST IN FIREFOX:
+  □ CSS renders correctly
+  □ Date inputs work
+  □ Fetch API works
+  □ All charts render
+
+TEST IN SAFARI:
+  □ Date pickers work
+  □ CSS grid correct
+  □ No webkit breaks
+
+TEST IN EDGE:
+  □ All pages load
+  □ Downloads work
+
+MOBILE TEST (Chrome DevTools):
+  □ User pages responsive
+  □ Admin pages readable at 768px
+  □ Sidebar collapses on mobile
+  □ Tables scroll horizontally
+  □ Modals fit on screen
+  □ Buttons are touch-friendly
+
+DELIVERABLE:
+  ✅ Works in all 4 browsers
+  ✅ Mobile responsive
+  ✅ No layout breaks at any size
+```
+
+---
+
+### FRIDAY — Final Deployment Checklist
+
+```
+ALL DAY:
+
+PRODUCTION CHECKLIST:
+
+ENV FILE:
+  □ JWT_SECRET_KEY = (64+ char random)
+  □ DATABASE_URL = (real PostgreSQL)
+  □ No test credentials in .env
+  □ .env added to .gitignore
+
+DATABASE:
+  □ All migrations run
+  □ Admin user created
+  □ 30 food items seeded
+  □ Inventory rows seeded
+  □ Indexes created
+
+BACKEND:
+  □ CORS locked to production domain
+  □ Rate limiting active
+  □ No debug mode in production
+  □ No console.log of sensitive data
+  □ All random() analytics removed
+  □ Fake JWT backdoor removed
+
+FRONTEND:
+  □ API URLs use env variable or
+    window.location.hostname
+  □ Not hardcoded to localhost
+  □ No TODO comments
+  □ No test credentials visible
+
+TESTS:
+  □ Register → Login → Profile → Order
+  □ Admin login → all 9 pages
+  □ Order status change both ways
+  □ Food add → visible on user menu
+  □ Audit logs for every action
+  □ Reports download all 3 types
+
+DELIVERABLE:
+  ✅ Production checklist complete
+  ✅ Application deployment ready
+  ✅ Week 5 COMPLETE
+  ✅ FULL PROJECT COMPLETE 🎉
+```
+
+---
+---
+
+## 📊 COMPLETE TIMELINE SUMMARY
+
+```
+WEEK 1 — Fix Foundation
+  Mon: PostgreSQL + database setup
+  Tue: Fix all models
+  Wed: Seed data + fix health route
+  Thu: Fix menu + order routes
+  Fri: Fix analytics + security
+
+WEEK 2 — Build Admin Backend
+  Mon: Admin foundation + dashboard
+  Tue: Foods + inventory routes
+  Wed: Orders + users routes
+  Thu: Analytics (all 10 endpoints)
+  Fri: AI + Reports + Audit routes
+
+WEEK 3 — Connect Frontends
+  Mon: Fix admin frontend URLs
+  Tue: Fix login bridge
+  Wed: Fix user frontend pages
+  Thu: Integration testing (all 8 points)
+  Fri: Bug fixes + RBAC testing
+
+WEEK 4 — Real AI + Intelligence
+  Mon: Fix AI recommendation engine
+  Tue: Fix chatbot intelligence
+  Wed: Admin AI Monitoring live
+  Thu: Reports + Audit verification
+  Fri: Complete system test
+
+WEEK 5 — Production Hardening
+  Mon: Security audit
+  Tue: Performance optimization
+  Wed: Error handling
+  Thu: Cross-browser + mobile
+  Fri: Final deployment checklist
+
+TOTAL: 5 WEEKS
+RESULT: Complete, integrated,
+        production-ready application
+```
+
+---

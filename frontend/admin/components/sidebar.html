@@ -1,0 +1,97 @@
+<!-- Sidebar -->
+<aside class="w-[280px] h-screen fixed left-0 top-0 z-30 flex flex-col glass-sidebar transition-all duration-300">
+    <!-- Brand -->
+    <div class="p-8 pb-4">
+        <div class="flex items-center gap-3">
+            <div
+                class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-forest text-white shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-[24px]">health_and_safety</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-forest">HealthBite</h1>
+                <p class="text-[10px] font-bold text-text-muted uppercase tracking-wider">Health Admin</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Sections -->
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+
+        <div class="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-text-muted/80">Overview</div>
+        <a class="flex items-center gap-3 px-4 py-3.5 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-dashboard.html" id="nav-dashboard">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+            <span class="text-sm">Dashboard</span>
+        </a>
+
+        <div class="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted/80">Operations
+        </div>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-food.html" id="nav-food">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">restaurant_menu</span>
+            <span class="text-sm">Food Management</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-inventory.html" id="nav-inventory">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">inventory_2</span>
+            <span class="text-sm">Inventory Control</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-orders.html" id="nav-orders">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">receipt_long</span>
+            <span class="text-sm">Order Management</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-users.html" id="nav-users">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">group</span>
+            <span class="text-sm">User Administration</span>
+        </a>
+
+        <div class="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted/80">Intelligence
+        </div>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-analytics.html" id="nav-analytics">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">monitoring</span>
+            <span class="text-sm">Analytics</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-ml-monitor.html" id="nav-ml-monitor">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">smart_toy</span>
+            <span class="text-sm">AI Monitoring</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-reports.html" id="nav-reports">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">summarize</span>
+            <span class="text-sm">Reports</span>
+        </a>
+
+        <div class="px-4 pt-4 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted/80">System</div>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-audit.html" id="nav-audit">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">history</span>
+            <span class="text-sm">Audit Logs</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-white/50 hover:text-forest font-medium transition-all group"
+            href="admin-settings.html" id="nav-settings">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
+            <span class="text-sm">Settings</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="p-4 border-t border-white/40">
+        <div
+            class="flex items-center gap-3 p-3 rounded-xl bg-white/40 border border-white/60 shadow-sm backdrop-blur-sm">
+            <div class="relative">
+                <div
+                    class="w-10 h-10 rounded-full bg-forest text-white flex items-center justify-center font-bold text-lg border-2 border-white shadow-sm admin-initial">
+                    A
+                </div>
+            </div>
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <span class="text-sm font-bold text-text-main truncate admin-name">Admin User</span>
+                <span class="text-xs text-text-muted truncate admin-role">Super Admin</span>
+            </div>
+        </div>
+    </div>
+</aside>

@@ -1,0 +1,1174 @@
+🧪 PROMPT 1 — COMPLETE TESTING PROMPT
+
+You are a senior QA engineer testing a full-stack
+web application called HealthBite Smart Canteen.
+
+The application has TWO sides:
+  USER SIDE  → FastAPI backend + HTML/JS frontend
+  ADMIN SIDE → FastAPI backend + HTML/JS frontend
+  ONE shared PostgreSQL database
+  ONE server running on port 8000
+
+═══════════════════════════════════════════════════
+YOUR JOB: Test EVERY page, EVERY function,
+EVERY API endpoint, and report EXACTLY what
+works, what fails, and what is missing.
+═══════════════════════════════════════════════════
+
+══════════════════════════════════
+SECTION 1 — BACKEND API TESTS
+══════════════════════════════════
+
+For each test below:
+  Run the request
+  Record: PASS ✅ or FAIL ❌
+  If FAIL: record exact error message
+  If FAIL: record HTTP status code received
+
+Use this base URL: http://localhost:8000
+
+── USER AUTH ENDPOINTS ──
+
+TEST U-AUTH-1:
+  POST /api/auth/register
+  Body: {
+    "name": "Test User",
+    "email": "testuser@healthbite.com",
+    "password": "Test@1234",
+    "role": "USER"
+  }
+  Expected: 200, returns token
+  Check:
+    □ Response has "token" field
+    □ Response has "name" field
+    □ Response has "role" = "USER"
+    □ User exists in database after call
+
+TEST U-AUTH-2:
+  POST /api/auth/login
+  Body: {
+    "email": "testuser@healthbite.com",
+    "password": "Test@1234",
+    "role": "USER"
+  }
+  Expected: 200, returns token
+  Check:
+    □ Token returned
+    □ Role is USER
+    □ Save this token as USER_TOKEN
+      for all subsequent user tests
+
+TEST U-AUTH-3:
+  POST /api/auth/login
+  Body: { wrong password }
+  Expected: 401
+  Check:
+    □ Returns 401 not 500
+    □ Returns clear error message
+
+TEST U-AUTH-4:
+  POST /api/auth/login
+  Body: {
+    "email": "admin@healthbite.com",
+    "password": "Admin@123",
+    "role": "SUPER_ADMIN"
+  }
+  Expected: 200, returns token
+  Check:
+    □ Token returned
+    □ Role is SUPER_ADMIN
+    □ Save this token as ADMIN_TOKEN
+      for all admin tests
+
+TEST U-AUTH-5:
+  POST /api/auth/register
+  Body: { duplicate email from TEST U-AUTH-1 }
+  Expected: 400
+  Check: □ Returns 400, not 500
+
+TEST U-AUTH-6:
+  POST /api/auth/register
+  Body: { weak password: "abc" }
+  Expected: 400
+  Check: □ Returns password validation error
+
+── HEALTH PROFILE ENDPOINTS ──
+
+TEST U-HEALTH-1:
+  GET /api/health/check
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns has_profile boolean
+    □ Returns user name
+
+TEST U-HEALTH-2:
+  POST /api/health/profile
+  Header: Authorization: Bearer {USER_TOKEN}
+  Body: {
+    "age": 28,
+    "height_cm": 170,
+    "weight_kg": 75,
+    "disease": ["Diabetes", "Hypertension"],
+    "allergies": "None"
+  }
+  Expected: 200
+  Check:
+    □ Profile saved successfully
+    □ BMI calculated and returned
+    □ Disease list saved correctly
+    □ Check users table:
+        conditions = '["Diabetes","Hypertension"]'
+        risk_level = 'moderate' or 'high'
+        risk_score > 0
+
+TEST U-HEALTH-3:
+  GET /api/health/profile
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns saved profile data
+    □ disease is a list not string
+    □ BMI is calculated correctly
+
+TEST U-HEALTH-4:
+  POST /api/health/daily-log
+  Header: Authorization: Bearer {USER_TOKEN}
+  Body: { "water_intake_ml": 500,
+          "steps": 3000, "mood": "Happy" }
+  Expected: 200
+  Check: □ Log saved for today
+
+TEST U-HEALTH-5:
+  GET /api/health/daily-log
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check: □ Returns today's log values
+
+── MENU ENDPOINTS ──
+
+TEST U-MENU-1:
+  GET /api/menu/intelligent
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns list of food items
+    □ Items come from DATABASE
+      (not hardcoded — verify by
+       checking food_items table count matches)
+    □ Each item has: id, name, price,
+        calories, sugar, match_score
+    □ Items sorted by match_score desc
+    □ Only available=True items returned
+    □ Only stock > 0 items returned
+    □ Diabetic user: high-sugar foods
+        have LOWER match_score
+    □ Returns at least 5 items
+
+TEST U-MENU-2:
+  POST /api/menu/order
+  Header: Authorization: Bearer {USER_TOKEN}
+  Body: {
+    "items": [
+      {"food_id": 1, "qty": 2},
+      {"food_id": 2, "qty": 1}
+    ],
+    "payment_method": "cash",
+    "delivery_type": "pickup"
+  }
+  Expected: 200
+  Check:
+    □ Order created in orders table
+    □ order_items rows created (2 rows)
+    □ Each order_item has correct:
+        food_name, qty, unit_price, subtotal
+    □ Order status = 'pending'
+    □ Order total = sum of subtotals
+    □ inventory.current_stock REDUCED by qty
+    □ health_flag = True on high-sugar item
+        (because user has Diabetes)
+    □ Save order_id for later tests
+
+TEST U-MENU-3:
+  POST /api/menu/order
+  Header: Authorization: Bearer {USER_TOKEN}
+  Body: { items: [{ food_id: 9999, qty: 1 }] }
+  Expected: 404 or 422
+  Check: □ Returns error, not 500
+
+TEST U-MENU-4:
+  POST /api/menu/order
+  Body: { items: [{ food_id: 1, qty: 99999 }] }
+  Expected: 422
+  Check: □ "Out of stock" error returned
+
+TEST U-MENU-5:
+  GET /api/menu/history
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns list of user's orders
+    □ Order from TEST U-MENU-2 appears
+    □ Each order has status field
+    □ Each order has items breakdown
+
+── ANALYTICS ENDPOINTS ──
+
+TEST U-ANALYTICS-1:
+  GET /api/analytics/nutrition?days=7
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns daily_data array
+    □ Data based on REAL orders
+      (NOT random numbers)
+    □ Verify: place another order, call again,
+        numbers change
+
+TEST U-ANALYTICS-2:
+  GET /api/analytics/risk
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns risk list based on
+      user's REAL conditions
+    □ Diabetes appears (user has it)
+    □ NOT hardcoded static data
+
+TEST U-ANALYTICS-3:
+  GET /api/analytics/prediction
+  Expected: 200
+  Check: □ Returns predictions based on
+           real order history
+
+TEST U-ANALYTICS-4:
+  GET /api/analytics/timeline
+  Expected: 200
+  Check: □ Returns timeline based on
+           real order data
+
+── CHATBOT ENDPOINT ──
+
+TEST U-CHATBOT-1:
+  POST /api/chatbot/query
+  Header: Authorization: Bearer {USER_TOKEN}
+  Body: {
+    "message": "what should I eat for lunch?",
+    "context": {}
+  }
+  Expected: 200
+  Check:
+    □ Returns response text
+    □ Response mentions foods available
+        in the DATABASE
+    □ Considers user's Diabetes condition
+    □ Does NOT mention items that are
+        unavailable or out of stock
+    □ AiRecommendationLog row created
+
+TEST U-CHATBOT-2:
+  POST /api/chatbot/query
+  Body: { "message": "is chocolate cake safe?" }
+  Expected: 200
+  Check:
+    □ Response warns about sugar
+      (user has Diabetes)
+    □ Response is personalized
+
+── ADMIN DASHBOARD ENDPOINTS ──
+
+TEST A-DASH-1:
+  GET /api/admin/overview
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ revenue.value reflects real orders
+    □ orders.value reflects real order count
+    □ orders.pending > 0
+      (from TEST U-MENU-2)
+    □ users.value reflects real user count
+    □ lowStock.value is a number
+
+TEST A-DASH-2:
+  GET /api/admin/overview
+  Header: Authorization: Bearer {USER_TOKEN}
+  Expected: 403
+  Check: □ Regular user CANNOT access admin
+
+TEST A-DASH-3:
+  GET /api/admin/analytics/orders-by-hour-today
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns hours array
+    □ Returns counts array
+    □ Current hour has a count > 0
+      (placed order earlier today)
+
+TEST A-DASH-4:
+  GET /api/admin/analytics/sales?period=7d
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns labels, revenue, orders arrays
+    □ All same length
+    □ No nulls in arrays
+
+TEST A-DASH-5:
+  GET /api/admin/analytics/top-items
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns items array
+    □ Max 5 items
+    □ Each has rank, name, sold, share
+
+TEST A-DASH-6:
+  GET /api/admin/alerts
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns alerts array
+    □ Each alert has type + message
+
+── ADMIN FOOD ENDPOINTS ──
+
+TEST A-FOOD-1:
+  GET /api/admin/foods
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns all 30 food items
+    □ Each has: id, name, category,
+        calories, available, stock info
+
+TEST A-FOOD-2:
+  POST /api/admin/foods
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Body: {
+    "name": "Test Salad Bowl",
+    "category": "Healthy",
+    "calories": 250,
+    "sugar": 3,
+    "protein": 12,
+    "fat": 5,
+    "price": 150,
+    "stock": 50,
+    "available": true
+  }
+  Expected: 201
+  Check:
+    □ Food created in food_items table
+    □ Inventory row created (stock=50)
+    □ Audit log written
+    □ Save new_food_id for next tests
+
+TEST A-FOOD-3:
+  GET /api/menu/intelligent
+  Header: Authorization: Bearer {USER_TOKEN}
+  Check:
+    □ "Test Salad Bowl" now appears
+      in user menu (live sync verified)
+
+TEST A-FOOD-4:
+  PUT /api/admin/foods/{new_food_id}
+  Body: { "calories": 260, "price": 160 }
+  Expected: 200
+  Check:
+    □ calories updated to 260
+    □ price updated to 160
+    □ Other fields unchanged
+    □ Audit log written with before/after
+
+TEST A-FOOD-5:
+  PUT /api/admin/foods/{new_food_id}/availability
+  Body: { "available": false }
+  Expected: 200
+  Check:
+    □ available = false in database
+    □ GET /api/menu/intelligent:
+        "Test Salad Bowl" GONE from user menu
+
+TEST A-FOOD-6:
+  POST /api/admin/foods
+  Body: { "name": "Test Salad Bowl", ... }
+  Expected: 409
+  Check: □ Duplicate name rejected
+
+TEST A-FOOD-7:
+  DELETE /api/admin/foods/{new_food_id}
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Food deleted from food_items
+    □ Inventory row deleted (cascade)
+    □ GET /api/menu/intelligent:
+        "Test Salad Bowl" gone forever
+
+── ADMIN INVENTORY ENDPOINTS ──
+
+TEST A-INV-1:
+  GET /api/admin/inventory
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns summary + items
+    □ Summary has total, lowStock, outOfStock
+    □ Items sorted by stock ascending
+    □ Each item has status badge value:
+        Healthy / Low / Out of Stock
+
+TEST A-INV-2:
+  PUT /api/admin/inventory/{food_id_1}
+  Body: { "quantity": 5 }
+  Expected: 200
+  Check:
+    □ current_stock updated to 5
+    □ Status changes to 'Low Stock'
+    □ Audit log written
+    □ GET /api/admin/inventory:
+        lowStock count incremented
+
+TEST A-INV-3:
+  PUT /api/admin/inventory/{food_id_1}
+  Body: { "quantity": -5 }
+  Expected: 422
+  Check: □ Negative stock rejected
+
+── ADMIN ORDER ENDPOINTS ──
+
+TEST A-ORD-1:
+  GET /api/admin/orders
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns summary + orders array
+    □ Summary has: total, pending,
+        completed, cancelled
+    □ Order from TEST U-MENU-2 visible
+    □ Order shows customer name
+    □ Order shows item breakdown
+    □ health_flag items marked
+
+TEST A-ORD-2:
+  GET /api/admin/orders?status=pending
+  Expected: 200
+  Check:
+    □ Only pending orders returned
+    □ Summary still shows all 4 counts
+
+TEST A-ORD-3:
+  PUT /api/admin/orders/{order_id}/status
+  Body: { "status": "completed" }
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Order status = 'completed' in DB
+    □ Audit log written
+    □ GET /api/menu/history (user):
+        Order now shows as 'completed'
+        (cross-system sync verified)
+
+TEST A-ORD-4:
+  PUT /api/admin/orders/{order_id}/status
+  Body: { "status": "pending" }
+  Expected: 422
+  Check: □ Cannot change completed → pending
+
+── ADMIN USER ENDPOINTS ──
+
+TEST A-USR-1:
+  GET /api/admin/users
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ Returns summary + users
+    □ Test user from TEST U-AUTH-1 appears
+    □ User has conditions:
+        ["Diabetes", "Hypertension"]
+    □ User has risk_level = 'moderate'/'high'
+    □ User has order_stats
+    □ summary.highRisk > 0
+
+TEST A-USR-2:
+  PUT /api/admin/users/{test_user_id}
+  Body: { "active": false }
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 200
+  Check:
+    □ User status = 'inactive' in DB
+    □ POST /api/auth/login with that user:
+        Returns 401 or 403
+        (deactivated user cannot login)
+
+TEST A-USR-3:
+  PUT /api/admin/users/{test_user_id}
+  Body: { "active": true }
+  Expected: 200
+  Check: □ User reactivated, can login again
+
+TEST A-USR-4:
+  PUT /api/admin/users/{test_user_id}
+  Body: { "role": "ANALYST" }
+  Expected: 200 (from SUPER_ADMIN token)
+  Check:
+    □ Role updated
+    □ User can now access
+        /api/admin/* endpoints
+
+TEST A-USR-5:
+  PUT /api/admin/users/{admin_user_id}
+  Body: { "active": false }
+  (Try to deactivate last SUPER_ADMIN)
+  Expected: 422
+  Check: □ Last SUPER_ADMIN protected
+
+── ADMIN ANALYTICS ENDPOINTS ──
+
+For all analytics tests:
+  Use: Authorization: Bearer {ADMIN_TOKEN}
+  Use: ?from=2024-01-01&to=2025-12-31
+
+TEST A-ANA-1: GET /api/admin/analytics/summary
+  Check: □ All 4 KPIs present with change %
+
+TEST A-ANA-2: GET /api/admin/analytics/revenue-by-category
+  Check:
+    □ Returns all 5 categories
+    □ Even if a category has 0 revenue
+
+TEST A-ANA-3: GET /api/admin/analytics/popular-foods
+  Check:
+    □ Max 10 foods
+    □ Ordered by count descending
+
+TEST A-ANA-4: GET /api/admin/analytics/category-heatmap
+  Check:
+    □ Returns 7 days (Mon-Sun)
+    □ Returns 5 categories
+    □ Returns 5×7 data matrix
+
+TEST A-ANA-5: GET /api/admin/analytics/disease-distribution
+  Check:
+    □ Diabetes appears (we set it)
+    □ Hypertension appears
+    □ Returns counts per disease
+
+TEST A-ANA-6: GET /api/admin/analytics/risk-trends
+  Check:
+    □ Returns labels, low, moderate, high
+    □ All same length
+
+TEST A-ANA-7: GET /api/admin/analytics/peak-hours
+  Check:
+    □ Returns exactly 24 hours
+    □ Returns exactly 24 counts
+
+TEST A-ANA-8: GET /api/admin/analytics/top-spenders
+  Check:
+    □ Max 5 users
+    □ Each has rank, name, total
+
+TEST A-ANA-9: GET /api/admin/analytics/ai-impact
+  Check:
+    □ Returns served, accepted,
+        acceptance_rate, health_improvement
+
+── ADMIN AI MONITOR ENDPOINTS ──
+
+TEST A-AI-1: GET /api/admin/ai/status
+  Check:
+    □ Returns status field
+    □ Returns metrics object
+    □ Does not crash if no model trained yet
+
+TEST A-AI-2: GET /api/admin/ai/features
+  Check:
+    □ Returns features list
+    □ Max 8 features
+    □ Each has name + importance
+
+TEST A-AI-3: GET /api/admin/ai/logs
+  Check:
+    □ Returns paginated logs
+    □ Logs from chatbot queries appear
+    □ Each log has: user_name, food_name,
+        confidence, user_action
+
+TEST A-AI-4: GET /api/admin/ai/training-history
+  Check: □ Returns history array (can be empty)
+
+TEST A-AI-5:
+  POST /api/admin/ai/retrain
+  Header: Authorization: Bearer {ADMIN_TOKEN}
+  Expected: 202
+  Check:
+    □ Returns 202 (not 200)
+    □ Returns { status: "retraining" }
+    □ GET /api/admin/ai/status immediately:
+        status = "retraining"
+    □ Wait 35 seconds
+    □ GET /api/admin/ai/status again:
+        status = "active"
+    □ Training history has new entry
+
+TEST A-AI-6:
+  POST /api/admin/ai/retrain again
+  Expected: 409
+  Check: □ Cannot retrain while retraining
+
+── ADMIN REPORT ENDPOINTS ──
+
+TEST A-RPT-1:
+  GET /api/admin/export/sales/preview
+  ?from=2024-01-01&to=2025-12-31
+  Check:
+    □ Returns columns array
+    □ Returns rows (max 10)
+    □ Returns total_rows count
+
+TEST A-RPT-2:
+  GET /api/admin/export/sales?format=csv
+  Check:
+    □ Response Content-Type is text/csv
+    □ Content-Disposition has filename
+    □ CSV content is valid
+
+TEST A-RPT-3:
+  GET /api/admin/export/sales?format=pdf
+  Check:
+    □ Response Content-Type is application/pdf
+    □ Content is valid PDF bytes
+
+TEST A-RPT-4:
+  GET /api/admin/export/health/preview
+  ?anonymize=true
+  Check:
+    □ Names show as "Anonymous"
+    □ Emails masked
+
+TEST A-RPT-5:
+  GET /api/admin/export/inventory
+  Check: □ CSV download with all food items
+
+── ADMIN AUDIT ENDPOINTS ──
+
+TEST A-AUD-1:
+  GET /api/admin/audit/summary
+  Check:
+    □ total_actions > 0
+      (we performed many actions above)
+    □ today_actions > 0
+    □ last_action_at has value
+
+TEST A-AUD-2:
+  GET /api/admin/audit/admins
+  Check:
+    □ Admin user appears in list
+    □ Role shown correctly
+
+TEST A-AUD-3:
+  GET /api/admin/audit
+  Check:
+    □ Returns paginated logs
+    □ All previous test actions appear:
+        LOGIN, CREATE, UPDATE, DELETE,
+        STATUS_CHANGE, EXPORT actions logged
+    □ Each has: timestamp, admin_name,
+        action_type, target_table,
+        ip_address, summary
+
+TEST A-AUD-4:
+  GET /api/admin/audit?action_type=CREATE
+  Check: □ Only CREATE actions returned
+
+TEST A-AUD-5:
+  GET /api/admin/audit?search=food
+  Check: □ Only food-related logs returned
+
+TEST A-AUD-6:
+  GET /api/admin/audit?page=1&per_page=5
+  Check:
+    □ Returns exactly 5 logs
+    □ Pagination meta correct
+
+══════════════════════════════════
+SECTION 2 — FRONTEND PAGE TESTS
+══════════════════════════════════
+
+For each page test:
+  Open the page in browser
+  Open DevTools (F12) → Console tab
+  Check for red errors
+  Test every interactive element
+
+── USER FRONTEND PAGES ──
+
+PAGE TEST U-P1: index.html (Login/Register)
+  □ Page loads without console errors
+  □ Login tab shows login form
+  □ Register tab shows register form
+  □ Login with wrong password:
+      Shows error message (not alert())
+      Page does NOT redirect
+  □ Login with correct USER credentials:
+      Redirects to health.html (no profile)
+      OR user.html (has profile)
+  □ Login with ADMIN credentials:
+      Redirects to admin/pages/dashboard.html
+      Stores 'admin_token' in localStorage
+      NOT 'token'
+  □ Register with weak password:
+      Shows validation error immediately
+  □ Register successfully:
+      Redirects to health.html
+  □ Logout clears ALL localStorage keys
+
+PAGE TEST U-P2: health.html (Health Profile Setup)
+  □ Page loads without console errors
+  □ All form fields visible
+  □ Disease checkboxes work
+  □ BMI auto-calculated on height/weight input
+  □ Form validates before submit
+  □ Submit saves profile
+  □ After save: redirects to user.html
+  □ If revisit with existing profile:
+      Form pre-filled with existing data
+
+PAGE TEST U-P3: user.html (Dashboard)
+  □ Page loads without console errors
+  □ User name shows in header
+  □ Stats show real values (not 0 or undefined)
+  □ Quick links work
+  □ Logout button works
+
+PAGE TEST U-P4: full-menu.html (Food Menu)
+  □ Page loads without console errors
+  □ Foods load from DATABASE (not hardcoded)
+  □ Each food card shows:
+      Name, price, calories, match score, tag
+  □ Match scores differ based on conditions
+  □ High-sugar foods have LOW score for diabetics
+  □ "Add to Cart" works
+  □ Cart total updates correctly
+  □ Cart quantity +/- works
+  □ Place Order button works:
+      Shows confirmation
+      Order created in DB
+      Stock reduced in DB
+  □ Health warning shows if flagged item in cart
+  □ Out of stock items don't appear
+  □ Category filter works
+  □ Search filter works
+
+PAGE TEST U-P5: orders.html (Order History)
+  □ Page loads without console errors
+  □ Orders load from database
+  □ Each order shows:
+      Order number, date, status, total
+  □ Order placed in TEST U-MENU-2 visible
+  □ Status badge correct color
+  □ If admin marked completed:
+      Shows "Completed" here too
+  □ Order item breakdown shows
+  □ Health flag warning visible if flagged
+
+PAGE TEST U-P6: health-analytics.html
+  □ Page loads without console errors
+  □ Charts render (not blank)
+  □ Data is REAL (not random)
+  □ Place 3 more orders then refresh:
+      Calorie numbers change
+  □ Date filter works
+  □ Risk section shows user's conditions
+  □ Prediction section gives real advice
+
+PAGE TEST U-P7: health-assistant.html (Chatbot)
+  □ Page loads without console errors
+  □ Chat input works
+  □ Send button works
+  □ Type "what should I eat":
+      Gets food recommendations
+      Recommendations are from DB
+  □ Type "is chocolate cake safe":
+      Warns about sugar (diabetic user)
+  □ "Order This" button on recommendation:
+      Logs action as 'accepted'
+      Check AiRecommendationLog in DB
+  □ Long conversation history maintained
+  □ Loading indicator during response
+
+PAGE TEST U-P8: forgot-password.html
+  □ Page loads without console errors
+  □ Email input works
+  □ Submit triggers reset flow
+  □ Shows success message
+
+── ADMIN FRONTEND PAGES ──
+
+For each admin page:
+  Login as SUPER_ADMIN first
+  Verify admin_token in localStorage
+  Then test the page
+
+PAGE TEST A-P1: dashboard.html
+  □ Page loads without console errors
+  □ All 4 KPI cards show numbers
+  □ KPI card numbers match API response
+  □ Change badges show % correctly
+  □ Orders by Hour chart renders
+  □ Current hour bar is highlighted
+  □ Average line drawn on chart
+  □ Sales chart renders
+  □ Period pills (7D/30D/90D) work:
+      Click 30D → chart updates
+      Click 90D → chart updates
+      KPI cards DO NOT reload
+  □ Top Items table shows 5 items
+  □ Rank badges: gold/silver/bronze
+  □ Progress bars show correct width
+  □ Alerts panel shows real alerts
+  □ Auto-refresh every 5 minutes
+
+PAGE TEST A-P2: food-management.html
+  □ Page loads without console errors
+  □ All 30+ foods show in table
+  □ Search filter works
+  □ Category filter works
+  □ Both filters together work (AND)
+  □ "Add Food" button:
+      Opens modal with empty form
+      Required field validation works
+      Image URL preview works
+      Save creates food in DB
+      New food appears in table
+      Count increments
+  □ Edit pencil icon:
+      Opens modal PRE-FILLED
+      Can change any field
+      Save updates only that row
+  □ Availability toggle:
+      Toggle OFF → status badge changes
+      User menu no longer shows item
+      Toggle back ON → item returns
+  □ Delete icon:
+      Shows confirmation modal with food name
+      Cancel = nothing happens
+      Confirm = row fades out + removed
+  □ Cannot delete food with pending orders:
+      Shows error message
+
+PAGE TEST A-P3: inventory.html
+  □ Page loads without console errors
+  □ Summary cards show correct counts
+  □ Table sorted: out of stock first
+  □ Status badges correct colors
+  □ Click Low Stock card:
+      Table filters to low stock items
+  □ Pencil icon → inline edit:
+      Input pre-filled
+      Type -5 → shake animation + error
+      Type 0 → saves, status = Out of Stock
+      Type 50 → saves, status = Healthy
+      Row flashes green on success
+      Summary strip recalculates
+      NO extra API call for summary
+  □ Cancel button reverts change
+
+PAGE TEST A-P4: orders.html
+  □ Page loads without console errors
+  □ Summary strip shows 4 counts
+  □ All orders appear in table
+  □ Tab bar works:
+      Pending tab → only pending shown
+      New API call on each tab click
+  □ Expand chevron:
+      Shows item breakdown
+      Shows health flags
+      One row at a time
+  □ Status dropdown:
+      Shows correct options per status
+      Selecting "Complete" opens modal
+      Confirm → status changes in table
+      Summary counts update
+      Tab counts update
+      If on Pending tab: row disappears
+  □ Date filter works (client-side)
+  □ Search filter works (client-side)
+
+PAGE TEST A-P5: users.html
+  □ Page loads without console errors
+  □ Summary cards correct
+  □ Test user appears in table
+  □ Conditions show in row
+  □ Risk badge correct color
+  □ Eye icon → health modal:
+      Risk ring animates
+      Conditions as colored pills
+      AI insights show
+  □ Deactivate button → popover:
+      Confirm deactivates user
+      Row gets line-through + opacity
+      Button changes to Reactivate
+      Summary counts update
+  □ Cannot deactivate yourself
+  □ Role change (SUPER_ADMIN only):
+      Role cards show correctly
+      Warning for SUPER_ADMIN role
+      Save changes role in table
+
+PAGE TEST A-P6: analytics.html
+  □ Page loads without console errors
+  □ All 4 KPI cards load
+  □ Date preset buttons work:
+      Click 7D → all charts update
+      Click 30D → all charts update
+  □ Revenue chart renders (line + bars)
+  □ Internal period pills on revenue chart
+      work independently of global filter
+  □ Revenue by Category doughnut:
+      All 5 categories always shown
+      Center shows total
+  □ Popular Foods horizontal bar renders
+  □ Category Heatmap:
+      Renders as CSS GRID not chart
+      7 columns, 5 rows
+      Color intensity varies
+  □ Disease Distribution doughnut:
+      Diabetes appears
+      Hypertension appears
+  □ Risk Trends area chart renders
+  □ Peak Hours bar chart:
+      24 bars always present
+  □ Top Spenders list shows
+  □ AI Impact stats show real rates
+
+PAGE TEST A-P7: ai-monitoring.html
+  □ Page loads without console errors
+  □ Status bar shows correct status
+  □ Pulsing dot animation works
+  □ 4 metric cards show
+  □ Progress bars animate on load
+  □ Feature Importance chart renders
+  □ Accuracy Trend chart renders:
+      Reference line at 85%
+  □ Recommendation Logs table:
+      Shows real logs
+      Search filter works
+      Risk filter works
+      Pagination works
+  □ Training History table shows
+  □ Retrain button (SUPER_ADMIN only):
+      Confirmation modal opens
+      Clicking Confirm:
+        Modal closes
+        Status → Retraining + spinner
+        Button disabled
+        Polls every 10 seconds
+        After ~35s: status → Active
+        Metrics update
+        Success toast appears
+
+PAGE TEST A-P8: reports.html
+  □ Page loads without console errors
+  □ 3 report cards visible
+  □ Click "Configure Sales Report":
+      Config panel expands
+      Other panels stay closed
+  □ Date preset buttons work
+  □ Preview button:
+      Shows first 10 rows
+      Shows row count
+  □ CSV download:
+      Button shows "Preparing..."
+      File downloads automatically
+      File opens correctly
+  □ PDF download:
+      File downloads automatically
+      PDF has title + table
+  □ Recent Exports log:
+      Downloaded file appears
+      "Download Again" works
+  □ Anonymize toggle on health report:
+      Names show as "Anonymous"
+
+PAGE TEST A-P9: audit-logs.html
+  □ Page loads without console errors
+  □ Summary cards correct
+  □ Admin dropdown populated
+  □ Logs table shows all actions
+  □ Search input (400ms debounce):
+      Type "food" → filters instantly
+      Rapid typing → only 1 API call
+  □ Action type filter works
+  □ Target table filter works
+  □ Date range filter works
+  □ Filter pills appear per filter
+  □ Click ✕ on pill → filter removed
+  □ Clear All → all filters reset
+  □ Expand chevron → JSON viewer:
+      Keys in cyan
+      Strings in green
+      Numbers in amber
+      Copy button works
+  □ For UPDATE actions:
+      Before/After panels show
+      Changed fields highlighted
+  □ Pagination works correctly
+  □ Per-page selector works
+  □ Auto-refresh toggle works:
+      Counter counts up
+      After 30s table refreshes
+
+══════════════════════════════════
+SECTION 3 — INTEGRATION TESTS
+══════════════════════════════════
+
+INTEGRATION TEST 1 — Full User Journey:
+  □ Register → Login → Set Profile
+  □ Browse intelligent menu
+  □ Place order with 3 items
+  □ View order history → order appears
+  □ Open admin Orders → same order appears
+  □ Admin completes order
+  □ User refreshes history → shows Completed
+  RESULT: ✅ PASS or ❌ FAIL
+
+INTEGRATION TEST 2 — Food Availability Sync:
+  □ Admin marks food X as unavailable
+  □ User opens menu → food X gone
+  □ Admin marks food X as available
+  □ User opens menu → food X back
+  RESULT: ✅ PASS or ❌ FAIL
+
+INTEGRATION TEST 3 — Stock Real-Time:
+  □ Check current stock of food Y in admin
+  □ User orders 3 of food Y
+  □ Admin refreshes inventory
+  □ Stock reduced by exactly 3
+  RESULT: ✅ PASS or ❌ FAIL
+
+INTEGRATION TEST 4 — Health Data Flow:
+  □ User has conditions: Diabetes
+  □ Admin opens Analytics → Disease chart
+  □ Diabetes count > 0
+  □ Admin opens Users → user shows risk level
+  RESULT: ✅ PASS or ❌ FAIL
+
+INTEGRATION TEST 5 — Audit Trail Complete:
+  □ Perform: add food, edit food, delete food,
+      change order status, deactivate user
+  □ Open Audit Logs
+  □ All 5 actions appear
+  □ All have correct action types
+  □ All have admin name + IP + timestamp
+  RESULT: ✅ PASS or ❌ FAIL
+
+INTEGRATION TEST 6 — AI Recommendation Flow:
+  □ User opens menu (recommendations logged)
+  □ Admin opens AI Monitoring → Logs
+  □ Entries appear for this user
+  □ User accepts a recommendation via chatbot
+  □ Acceptance rate updates in admin
+  RESULT: ✅ PASS or ❌ FAIL
+
+══════════════════════════════════
+SECTION 4 — RBAC SECURITY TESTS
+══════════════════════════════════
+
+Login as ANALYST, test these are BLOCKED:
+  □ POST /api/admin/foods → 403
+  □ PUT  /api/admin/foods/{id} → 403
+  □ PUT  /api/admin/inventory/{id} → 403
+  □ PUT  /api/admin/orders/{id}/status → 403
+  □ PUT  /api/admin/users/{id} → 403
+  □ POST /api/admin/ai/retrain → 403
+
+Login as ANALYST, test these are ALLOWED:
+  □ GET /api/admin/overview → 200
+  □ GET /api/admin/foods → 200
+  □ GET /api/admin/orders → 200
+  □ GET /api/admin/analytics/summary → 200
+  □ GET /api/admin/audit → 200
+
+Login as MANAGER, test these are BLOCKED:
+  □ POST /api/admin/ai/retrain → 403
+  □ PUT  /api/admin/users/{id} (role change) → 403
+
+Login as MANAGER, test these are ALLOWED:
+  □ POST /api/admin/foods → 201
+  □ PUT  /api/admin/orders/{id}/status → 200
+
+══════════════════════════════════
+SECTION 5 — EDGE CASE TESTS
+══════════════════════════════════
+
+EDGE CASE 1 — Empty States:
+  □ User with no orders → orders page
+      shows "No orders yet" (not blank/crash)
+  □ Admin analytics with no data in range
+      → charts show empty state (not crash)
+  □ Admin audit with no logs
+      → shows "No logs found" (not blank)
+
+EDGE CASE 2 — Invalid Tokens:
+  □ Corrupted token → 401 returned
+  □ Expired token → 401 returned
+  □ Missing token → 401 returned
+  □ User token on admin endpoint → 403
+
+EDGE CASE 3 — Data Limits:
+  □ Order with qty=0 → rejected
+  □ Food name 200 chars → truncated or rejected
+  □ Inventory stock = 0 → user cannot order it
+  □ All foods unavailable → user menu empty state
+
+EDGE CASE 4 — Concurrent Actions:
+  □ User orders last item in stock (qty=1)
+  □ Stock goes to 0
+  □ Same user tries to order again → blocked
+  □ Admin inventory shows 0
+
+══════════════════════════════════
+SECTION 6 — TEST REPORT FORMAT
+══════════════════════════════════
+
+After running all tests, produce this report:
+
+HEALTHBITE TEST REPORT
+======================
+Date: [today]
+Tester: [name]
+
+SUMMARY:
+  Total Tests:   [N]
+  Passed:        [N] ✅
+  Failed:        [N] ❌
+  Skipped:       [N] ⏭️
+
+FAILED TESTS:
+  [TEST ID] | [Expected] | [Got] | [Error]
+  Example:
+  U-MENU-2  | 200        | 500   | KeyError 'food_id'
+  A-FOOD-3  | 201        | 422   | Validation error
+
+CRITICAL FAILURES (blockers):
+  List any test failures that prevent
+  other tests from running
+
+WARNINGS (non-blocking):
+  List any tests that pass but with
+  unexpected behavior
+
+INTEGRATION STATUS:
+  Test 1: ✅ / ❌
+  Test 2: ✅ / ❌
+  Test 3: ✅ / ❌
+  Test 4: ✅ / ❌
+  Test 5: ✅ / ❌
+  Test 6: ✅ / ❌
+
+OVERALL STATUS:
+  □ READY FOR PRODUCTION
+  □ NEEDS FIXES (list below)
+  □ CRITICAL ISSUES (stop + fix)

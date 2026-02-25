@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Analytics</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)", "primary-dark": "var(--color-primary-dark, #0e9f15)", "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5", "surface-glass": "rgba(255,255,255,0.7)",
+                        "text-main": "#1B261D", "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00", "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: { "glass": "0 8px 32px 0 rgba(17,212,27,0.05)", "glass-hover": "0 12px 40px 0 rgba(17,212,27,0.1)" },
+                },
+            },
+        }
+    </script>
+    <!-- Chart.js 4.4.1 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <style>
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0
+            }
+
+            100% {
+                background-position: 200% 0
+            }
+        }
+
+        .preset-pill {
+            transition: all 0.15s
+        }
+
+        .preset-pill.active {
+            background: #2E7D32;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25)
+        }
+
+        /* Heatmap */
+        .heatmap-cell {
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            min-height: 36px;
+            transition: transform 0.15s
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.05)
+        }
+
+        /* Chart card skeleton */
+        .chart-skeleton {
+            min-height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .chart-skeleton::after {
+            content: 'Loading chart...';
+            color: #738A76;
+            font-size: 13px;
+            font-weight: 600
+        }
+
+        /* Progress bar animation */
+        .progress-fill {
+            transition: width 1.2s ease-out
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <!-- Page Header -->
+                <header class="mb-6">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Analytics</h2>
+                    <p class="text-text-muted text-lg mt-1">Insights, trends, and performance metrics.</p>
+                </header>
+
+                <!-- ═══════════ GLOBAL DATE FILTER BAR ═══════════ -->
+                <div class="glass-panel rounded-2xl shadow-glass p-4 mb-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex gap-2" id="presetPills">
+                            <button
+                                class="preset-pill px-4 py-2 rounded-full text-sm font-bold bg-white/50 text-text-muted"
+                                data-preset="today">Today</button>
+                            <button
+                                class="preset-pill px-4 py-2 rounded-full text-sm font-bold bg-white/50 text-text-muted"
+                                data-preset="7d">7 Days</button>
+                            <button class="preset-pill active px-4 py-2 rounded-full text-sm font-bold"
+                                data-preset="30d">30 Days</button>
+                            <button
+                                class="preset-pill px-4 py-2 rounded-full text-sm font-bold bg-white/50 text-text-muted"
+                                data-preset="90d">90 Days</button>
+                            <button
+                                class="preset-pill px-4 py-2 rounded-full text-sm font-bold bg-white/50 text-text-muted"
+                                data-preset="custom">Custom</button>
+                        </div>
+                        <div id="customDateInputs" class="hidden flex items-center gap-2">
+                            <input id="dateFrom" type="date"
+                                class="px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main outline-none" />
+                            <span class="text-xs font-bold text-text-muted">to</span>
+                            <input id="dateTo" type="date"
+                                class="px-3 py-2 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main outline-none" />
+                        </div>
+                        <div class="ml-auto flex gap-2">
+                            <button id="applyBtn" onclick="applyFilters()"
+                                class="px-5 py-2 bg-forest text-white text-sm font-bold rounded-xl hover:bg-green-800 transition-colors shadow-lg">Apply</button>
+                            <button onclick="exportAll()"
+                                class="px-5 py-2 text-forest text-sm font-bold rounded-xl border border-forest/20 hover:bg-forest/5 transition-colors">Export
+                                All</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-muted mt-2" id="dateRangeLabel">Showing data from last 30 days</p>
+                </div>
+
+                <!-- ═══════════ SECTION 1 — KPI STRIP ═══════════ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="kpiStrip">
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">Total Revenue</span>
+                        <p id="kpiRevenue" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-28">&nbsp;</p>
+                        <div id="kpiRevenueChange" class="mt-1"></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">Total Orders</span>
+                        <p id="kpiOrders" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-20">&nbsp;</p>
+                        <div id="kpiOrdersChange" class="mt-1"></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">Avg Order Value</span>
+                        <p id="kpiAvg" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-20">&nbsp;</p>
+                        <div id="kpiAvgChange" class="mt-1"></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">New Users</span>
+                        <p id="kpiUsers" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-16">&nbsp;</p>
+                        <div id="kpiUsersChange" class="mt-1"></div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 2 — SALES ROW (1.6fr + 1fr) ═══════════ -->
+                <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 mb-8">
+                    <!-- Revenue Over Time -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-text-main">Revenue Over Time</h3>
+                                <p class="text-xs text-text-muted">Revenue & orders trend</p>
+                            </div>
+                            <div class="flex gap-1" id="salesPeriodPills">
+                                <button
+                                    class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all"
+                                    data-period="7d" onclick="switchSalesChartPeriod(this, '7d')">7D</button>
+                                <button class="px-3 py-1 rounded-full text-[10px] font-bold bg-forest text-white"
+                                    data-period="30d" onclick="switchSalesChartPeriod(this, '30d')">30D</button>
+                                <button
+                                    class="px-3 py-1 rounded-full text-[10px] font-bold bg-white/50 text-text-muted hover:bg-forest hover:text-white transition-all"
+                                    data-period="90d" onclick="switchSalesChartPeriod(this, '90d')">90D</button>
+                            </div>
+                        </div>
+                        <div class="relative" style="height:280px"><canvas id="salesChart"></canvas></div>
+                    </div>
+                    <!-- Revenue by Category -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Revenue by Category</h3>
+                        <p class="text-xs text-text-muted mb-4">Breakdown by food category</p>
+                        <div class="relative mx-auto" style="height:220px;max-width:220px"><canvas
+                                id="revenuePieChart"></canvas></div>
+                        <div id="pieLegend" class="mt-4 space-y-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 3 — FOOD ANALYTICS ROW ═══════════ -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Top 10 Most Ordered -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Top 10 Most Ordered</h3>
+                        <p class="text-xs text-text-muted mb-4">By total order count</p>
+                        <div class="relative" style="height:320px"><canvas id="popularFoodsChart"></canvas></div>
+                    </div>
+                    <!-- Heatmap -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Orders by Category × Day</h3>
+                        <p class="text-xs text-text-muted mb-4">Heatmap of order volume</p>
+                        <div id="heatmapContainer"></div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 4 — HEALTH ANALYTICS ROW (1fr + 1.4fr) ═══════════ -->
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-6 mb-8">
+                    <!-- Disease Distribution -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Disease Distribution</h3>
+                        <p class="text-xs text-text-muted mb-4">Top 6 health conditions</p>
+                        <div class="relative mx-auto" style="height:210px;max-width:210px"><canvas
+                                id="diseaseChart"></canvas></div>
+                        <div id="diseaseLegend" class="mt-4 space-y-1.5"></div>
+                    </div>
+                    <!-- Risk Level Trends -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Risk Level Trends</h3>
+                        <p class="text-xs text-text-muted mb-4">User risk distribution over time</p>
+                        <div class="relative" style="height:280px"><canvas id="riskTrendChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 5 — INSIGHT CARDS (3 columns) ═══════════ -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Peak Order Hours -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Peak Order Hours</h3>
+                        <p class="text-xs text-text-muted mb-4">Orders by hour of day</p>
+                        <div class="relative" style="height:200px"><canvas id="peakHoursChart"></canvas></div>
+                        <p id="peakHourLabel" class="text-sm font-bold mt-3 text-center"></p>
+                    </div>
+                    <!-- Top 5 Spenders -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">Top 5 Spenders</h3>
+                        <p class="text-xs text-text-muted mb-4">Ranked by total spending</p>
+                        <div id="topSpendersList" class="space-y-3"></div>
+                    </div>
+                    <!-- AI Recommendation Impact -->
+                    <div class="glass-panel rounded-2xl shadow-glass p-6">
+                        <h3 class="text-base font-bold text-text-main mb-1">AI Recommendation Impact</h3>
+                        <p class="text-xs text-text-muted mb-4">Model effectiveness metrics</p>
+                        <div id="aiStatsContainer" class="space-y-4"></div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    <script src="../assets/js/admin-analytics.js"></script>
+</body>
+
+</html>

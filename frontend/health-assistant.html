@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HealthBite - Your Personalized AI Nutritionist">
+    <title>HealthBite | AI Assistant</title>
+    <!-- Icons and Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --brand-secondary: #4f46e5;
+            --brand-accent: #f59e0b;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-white: rgba(255, 255, 255, 0.95);
+            --transition-master: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: var(--brand-primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            margin-bottom: 0;
+            z-index: 2000;
+        }
+
+        /* Sidebar Header Icons Area */
+        .sidebar-header-controls {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 25px;
+            width: 100%;
+        }
+
+        .sidebar-marker {
+            display: none;
+            color: var(--brand-primary);
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+        }
+
+        .sidebar-close {
+            display: none;
+            background: #f1f5f9;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            color: #64748b;
+            font-size: 18px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+
+        .sidebar-close:hover {
+            background: #ffe4e6;
+            color: #e11d48;
+        }
+
+        /* Ultimate Mesh Background */
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 96%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(270, 100%, 97%, 1) 0, transparent 50%);
+        }
+
+        .page-bg::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .assistant-container {
+            width: 95%;
+            max-width: 900px;
+            height: 80vh;
+            display: flex;
+            background: var(--glass-white);
+            backdrop-filter: blur(25px);
+            border-radius: 35px;
+            overflow: hidden;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: cardEntrance 1.2s var(--transition-master);
+        }
+
+        @keyframes cardEntrance {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Sidebar Styling */
+        .chat-sidebar {
+            width: 280px;
+            background: rgba(248, 250, 252, 0.5);
+            border-right: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            padding: 30px 20px;
+            transition: var(--transition-master);
+        }
+
+        .sidebar-header h3 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+
+        .sidebar-header p {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-new-chat {
+            width: 100%;
+            padding: 18px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            margin: 30px 0;
+            cursor: pointer;
+            transition: var(--transition-master);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-new-chat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .history-item {
+            padding: 15px;
+            background: white;
+            border-radius: 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .history-item:hover {
+            border-color: var(--brand-primary);
+            background: #f8fafc;
+            color: var(--brand-primary);
+        }
+
+        .history-item.active {
+            border-color: var(--brand-primary);
+            background: #eef2ff;
+            color: var(--brand-primary);
+        }
+
+        /* Main Chat Panel */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .bot-identity {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bot-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: #fcfdfe;
+            scroll-behavior: smooth;
+        }
+
+        /* Message Bubbles */
+        .msg {
+            max-width: 80%;
+            padding: 18px 24px;
+            border-radius: 25px;
+            font-size: 15px;
+            line-height: 1.6;
+            font-weight: 500;
+            position: relative;
+            animation: bubbleUp 0.4s var(--transition-master);
+        }
+
+        @keyframes bubbleUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .msg-bot {
+            align-self: flex-start;
+            background: white;
+            color: var(--text-main);
+            border: 1.5px solid #f1f5f9;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: var(--brand-primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Chips / Quick Replies */
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .chip-btn {
+            padding: 10px 18px;
+            background: #eef2ff;
+            color: var(--brand-primary);
+            border: 1.5px solid #c7d2fe;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .chip-btn:hover {
+            background: var(--brand-primary);
+            color: white;
+            border-color: var(--brand-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Explanation Card */
+        .explain-card {
+            background: #f8fafc;
+            border-radius: 25px;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .explain-header {
+            padding: 15px 25px;
+            background: #eef2ff;
+            color: var(--brand-primary);
+            font-weight: 800;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .explain-body {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .insight-item {
+            background: white;
+            padding: 15px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .insight-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .insight-text h4 {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .insight-text p {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 2px 0 0 0;
+        }
+
+        /* Typing Indicator */
+        .typing {
+            display: none;
+            align-self: flex-start;
+            background: #f1f5f9;
+            padding: 12px 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            gap: 5px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: #94a3b8;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-6px);
+            }
+        }
+
+        /* Input Area */
+        .chat-input-area {
+            padding: 25px 30px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 15px;
+            background: white;
+        }
+
+        .chatbot-input {
+            flex: 1;
+            padding: 18px 30px;
+            background: #f8fafc;
+            border: 2px solid transparent;
+            border-radius: 22px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .chatbot-input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            background: white;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.05);
+        }
+
+        .btn-send {
+            width: 60px;
+            height: 60px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 22px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: var(--transition-master);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-send:hover {
+            transform: scale(1.05) rotate(5deg);
+            background: #4f46e5;
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @media (max-width: 900px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar-marker,
+            .sidebar-close {
+                display: flex;
+            }
+
+            .chat-sidebar {
+                position: fixed;
+                left: -320px;
+                top: 0;
+                bottom: 0;
+                z-index: 1000;
+                background: white;
+            }
+
+            .chat-sidebar.mobile-active {
+                left: 0;
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2);
+            }
+
+            .assistant-container {
+                border-radius: 30px;
+                height: 70vh;
+                width: 88%;
+                max-width: 420px;
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+            }
+
+            .chat-header {
+                padding: 15px 20px;
+                gap: 15px;
+                justify-content: flex-start;
+            }
+
+            .chat-header h2 {
+                font-size: 16px !important;
+            }
+
+            .chat-messages {
+                padding: 15px;
+                gap: 12px;
+            }
+
+            .msg {
+                max-width: 95%;
+                padding: 12px 16px;
+                font-size: 13.5px;
+            }
+
+            .explain-body {
+                grid-template-columns: 1fr;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .chat-input-area {
+                padding: 15px;
+            }
+
+            .chatbot-input {
+                padding: 12px 20px;
+                font-size: 13px;
+            }
+
+            .btn-send {
+                width: 45px;
+                height: 45px;
+                border-radius: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .bot-identity h2 {
+                font-size: 16px;
+            }
+
+            .bot-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .chat-input-area {
+                gap: 10px;
+            }
+
+            .btn-send {
+                width: 50px;
+                height: 50px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg"></div>
+
+
+    <div class="assistant-container">
+        <!-- Sidebar -->
+        <aside class="chat-sidebar">
+            <div class="sidebar-header-controls">
+                <div class="sidebar-marker">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <button class="sidebar-close" id="sidebar-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="sidebar-header">
+                <h3>Insights History</h3>
+                <p>Preserving your health queries</p>
+            </div>
+
+            <button class="btn-new-chat" onclick="window.location.reload()">
+                <i class="fas fa-plus-circle"></i> New Consultation
+            </button>
+
+            <div class="history-list">
+                <div class="history-item active">Diabetes Management</div>
+                <div class="history-item">Meal Safety Check</div>
+                <div class="history-item">Sugar Trends</div>
+            </div>
+
+            <div style="margin-top: auto; padding: 25px; background: #eef2ff; border-radius: 25px; text-align: center;">
+                <i class="fas fa-shield-heart"
+                    style="font-size: 24px; color: var(--brand-primary); margin-bottom: 10px; display: block;"></i>
+                <p style="font-size: 10px; font-weight: 700; color: var(--brand-primary); text-transform: uppercase;">
+                    Protected Intelligence</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">Your health data is encrypted and
+                    private.</p>
+            </div>
+        </aside>
+
+        <!-- Main Chat -->
+        <main class="chat-main">
+            <header class="chat-header">
+                <button class="mobile-menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="bot-identity">
+                    <div class="bot-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -1px;">HealthBite Assistant</h2>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
+                            <span
+                                style="font-size: 10px; color: #10b981; font-weight: 800; text-transform: uppercase;">Secure
+                                AI Active</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 20px;">
+                    <a href="user.html"
+                        style="color: var(--text-muted); font-size: 20px; text-decoration: none; transition: 0.3s;"><i
+                            class="fas fa-times-circle"></i></a>
+                </div>
+            </header>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="msg msg-bot">
+                    Hello! I'm your HealthBite AI. I've analyzed today's menu against your metabolic profile. How can I
+                    guide your nutritional choices today?
+                    <div class="chips-container" id="initial-chips">
+                        <button class="chip-btn" onclick="sendQuickQuery('Recommend a healthy lunch')">Suggest
+                            Lunch</button>
+                        <button class="chip-btn" onclick="sendQuickQuery('Is pizza safe for me?')">Is Pizza
+                            Safe?</button>
+                        <button class="chip-btn" onclick="sendQuickQuery('Show my health stats')">My Stats</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing" id="typing-indicator">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="user-input" class="chatbot-input"
+                    placeholder="Ask about meal safety, nutrition, or insights..."
+                    onkeypress="if(event.key==='Enter') sendMessage()">
+                <button class="btn-send" id="send-btn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        // Global variables API_HOSTNAME and API_ROOT are imported from script.js
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if (!token) { window.location.href = 'index.html'; return; }
+
+            const hasProfile = await checkProfileCompletion();
+            if (!hasProfile) {
+                window.location.href = 'health.html';
+                return;
+            }
+        });
+
+        function sendQuickQuery(text) {
+            document.getElementById('user-input').value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const messages = document.getElementById('chat-messages');
+            const typing = document.getElementById('typing-indicator');
+            const sendBtn = document.getElementById('send-btn');
+
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Clear input and disable send
+            input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
+
+            // Add user message to UI
+            const userMsg = document.createElement('div');
+            userMsg.className = 'msg msg-user';
+            userMsg.textContent = text;
+            messages.appendChild(userMsg);
+            messages.scrollTop = messages.scrollHeight;
+
+            // Show typing indicator
+            typing.style.display = 'flex';
+            messages.scrollTop = messages.scrollHeight;
+
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch(`${API_ROOT}/chatbot/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ message: text })
+                });
+
+                const data = await response.json();
+
+                // Hide typing indicator
+                typing.style.display = 'none';
+
+                // Add bot message to UI
+                const botMsgWrapper = document.createElement('div');
+                botMsgWrapper.className = 'msg msg-bot';
+
+                let content = `<p>${data.text || "I'm having trouble processing that right now."}</p>`;
+
+                // Add Explanation Card if exists
+                if (data.explanation_card) {
+                    content += `
+                    <div class="explain-card">
+                        <div class="explain-header">${data.explanation_card.title}</div>
+                        <div class="explain-body">
+                            ${(data.explanation_card.chips || []).map(chip => `
+                                <div class="insight-item">
+                                    <div class="insight-icon" style="background: ${getChipColor(chip.color, true)}; color: ${getChipColor(chip.color)};">
+                                        <i class="fas fa-${getIcon(chip.icon)}"></i>
+                                    </div>
+                                    <div class="insight-text">
+                                        <h4>${chip.label}</h4>
+                                        <p>${chip.value}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
+
+                // Add Chips if exists
+                if (data.chips && data.chips.length > 0) {
+                    content += `
+                    <div class="chips-container">
+                        ${data.chips.map(chipText => `
+                            <button class="chip-btn" onclick="sendQuickQuery('${chipText}')">${chipText}</button>
+                        `).join('')}
+                    </div>`;
+                }
+
+                botMsgWrapper.innerHTML = content;
+                messages.appendChild(botMsgWrapper);
+                messages.scrollTop = messages.scrollHeight;
+
+            } catch (err) {
+                typing.style.display = 'none';
+                const botMsg = document.createElement('div');
+                botMsg.className = 'msg msg-bot';
+                botMsg.textContent = "Apologies, I'm experiencing connectivity issues with the health database.";
+                messages.appendChild(botMsg);
+                messages.scrollTop = messages.scrollHeight;
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function getChipColor(color, bg = false) {
+            const colors = {
+                'green': bg ? '#dcfce7' : '#166534',
+                'orange': bg ? '#ffedd5' : '#9a3412',
+                'blue': bg ? '#dbeafe' : '#1e40af',
+                'red': bg ? '#fee2e2' : '#991b1b'
+            };
+            return colors[color] || (bg ? '#f1f5f9' : '#475569');
+        }
+
+        function getIcon(lucideIcon) {
+            const map = {
+                'trending-down': 'arrow-trend-down',
+                'alert-triangle': 'exclamation-triangle',
+                'activity': 'heart-circle-check',
+                'bar-chart-3': 'chart-column',
+                'sparkles': 'wand-magic-sparkles',
+                'shield': 'shield-halved',
+                'check-circle': 'check-circle'
+            };
+            return map[lucideIcon] || 'info-circle';
+        }
+
+        // Mobile Menu Logic
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebarClose = document.getElementById('sidebar-close-btn');
+        const sidebar = document.querySelector('.chat-sidebar');
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.add('mobile-active');
+            });
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-active');
+            });
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 900 &&
+                !sidebar.contains(e.target) &&
+                !menuToggle.contains(e.target) &&
+                sidebar.classList.contains('mobile-active')) {
+                sidebar.classList.remove('mobile-active');
+            }
+        });
+    </script>
+</body>
+
+</html>

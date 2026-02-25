@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - HealthBite</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f4f7f5;
+        }
+
+        .msg {
+            text-align: center;
+            color: #738A76;
+            font-size: 14px;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #11d41b;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="msg">
+        <div class="spinner"></div>
+        <p>Redirecting to Admin Panel…</p>
+    </div>
+    <script src="/script.js"></script>
+    <script>
+        (function () {
+            try {
+                const token = localStorage.getItem('token');
+                const role = localStorage.getItem('role');
+
+                if (!token || role !== 'ADMIN') {
+                    // Not logged in or not admin → go to login
+                    window.location.replace('index.html');
+                } else {
+                    // Valid admin session → go to the full admin dashboard
+                    window.location.replace('admin/pages/admin-dashboard.html');
+                }
+            } catch (e) {
+                window.location.replace('index.html');
+            }
+        })();
+    </script>
+</body>
+
+</html>

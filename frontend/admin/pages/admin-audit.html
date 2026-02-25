@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Audit Logs</title>
+    <link rel="stylesheet" href="../assets/css/admin.css">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)", "primary-dark": "var(--color-primary-dark, #0e9f15)", "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5", "surface-glass": "rgba(255,255,255,0.7)",
+                        "text-main": "#1B261D", "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00", "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"], "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"] },
+                    boxShadow: { "glass": "0 8px 32px 0 rgba(17,212,27,0.05)", "glass-hover": "0 12px 40px 0 rgba(17,212,27,0.1)" },
+                },
+            },
+        }
+    </script>
+    <script src="../assets/js/layout.js"></script>
+    <style>
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0
+            }
+
+            100% {
+                background-position: 200% 0
+            }
+        }
+
+        /* Payload row animation */
+        .payload-row {
+            display: none
+        }
+
+        .payload-row.expanded {
+            display: table-row
+        }
+
+        /* JSON syntax highlighting */
+        .json-viewer {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre;
+            tab-size: 2;
+            padding: 12px 16px;
+            margin: 0;
+            counter-reset: line;
+        }
+
+        .json-viewer span.line {
+            display: block;
+        }
+
+        .json-viewer span.line::before {
+            counter-increment: line;
+            content: counter(line);
+            display: inline-block;
+            width: 2em;
+            margin-right: 1.5em;
+            text-align: right;
+            color: rgba(115, 138, 118, 0.4);
+            border-right: 1px solid rgba(115, 138, 118, 0.2);
+            padding-right: 10px;
+        }
+
+        .json-key {
+            color: #06b6d4;
+            font-weight: 600;
+        }
+
+        .json-string {
+            color: #16a34a;
+        }
+
+        .json-number {
+            color: #d97706;
+        }
+
+        .json-bool {
+            color: #9333ea;
+            font-style: italic;
+        }
+
+        .json-null {
+            color: #ef4444;
+            font-style: italic;
+        }
+
+        /* Diff highlighting */
+        .diff-added {
+            background-color: rgba(34, 197, 94, 0.15);
+            display: block;
+        }
+
+        .diff-removed {
+            background-color: rgba(239, 68, 68, 0.1);
+            text-decoration: line-through;
+            color: #ef4444;
+            display: block;
+        }
+
+        .diff-changed {
+            background-color: rgba(245, 158, 11, 0.15);
+            display: block;
+        }
+
+        /* Auto-refresh toggle */
+        input:checked~.dot {
+            transform: translateX(100%);
+            background-color: white;
+        }
+
+        input:checked~.block {
+            background-color: #2E7D32;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+        <div id="sidebar-container"></div>
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <header class="mb-6 flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Audit Logs</h2>
+                        <p class="text-text-muted text-lg mt-1">Immutable record of system changes.</p>
+                    </div>
+                    <!-- Auto-refresh toggle -->
+                    <div class="flex flex-col items-end gap-1">
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="autoRefreshToggle" class="sr-only">
+                                <div class="block w-10 h-6 rounded-full bg-black/10 transition-colors"></div>
+                                <div
+                                    class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform shadow-sm">
+                                </div>
+                            </div>
+                            <div class="ml-3 text-sm font-bold text-text-muted">Auto-refresh (30s)</div>
+                        </label>
+                        <span id="refreshCounter" class="text-[10px] text-text-muted opacity-0 transition-opacity">Last
+                            refreshed: Just now</span>
+                    </div>
+                </header>
+
+                <!-- ═══════════ SECTION 1 — SUMMARY CARDS ═══════════ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">Total Actions</span>
+                        <p id="statTotal" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-20">&nbsp;</p>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass relative overflow-hidden">
+                        <span class="text-text-muted text-sm font-medium">Actions Today</span>
+                        <p id="statToday" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-20">&nbsp;</p>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass">
+                        <span class="text-text-muted text-sm font-medium">Admins Active Today</span>
+                        <p id="statAdmins" class="text-3xl font-bold text-text-main mt-1 shimmer h-9 w-20">&nbsp;</p>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass bg-forest/5 border border-forest/10">
+                        <span class="text-forest text-sm font-medium">Last Action</span>
+                        <p id="statLastAction" class="text-xl font-bold text-forest mt-2 shimmer h-7 w-32">&nbsp;</p>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 2 — FILTER BAR ═══════════ -->
+                <div class="glass-panel rounded-t-2xl shadow-glass border-b border-black/5 flex flex-col pt-2">
+                    <!-- Row 1 -->
+                    <div class="px-5 py-3 flex flex-wrap items-center gap-3">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <span
+                                class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[18px]">search</span>
+                            <input id="filterSearch" type="text"
+                                class="w-full pl-9 pr-4 py-2 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main placeholder-text-muted/70 outline-none"
+                                placeholder="Search actions, payload, admin..." />
+                        </div>
+                        <select id="filterAdmin"
+                            class="px-3 py-2 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main font-medium cursor-pointer outline-none">
+                            <option value="all">All Admins</option>
+                        </select>
+                        <select id="filterAction"
+                            class="px-3 py-2 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main font-medium cursor-pointer outline-none">
+                            <option value="all">All Action Types</option>
+                            <option value="CREATE">CREATE</option>
+                            <option value="UPDATE">UPDATE</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="LOGIN">LOGIN</option>
+                            <option value="LOGOUT">LOGOUT</option>
+                            <option value="EXPORT">EXPORT</option>
+                            <option value="RETRAIN">RETRAIN</option>
+                            <option value="STATUS_CHANGE">STATUS_CHANGE</option>
+                        </select>
+                        <select id="filterTarget"
+                            class="px-3 py-2 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main font-medium cursor-pointer outline-none">
+                            <option value="all">All Target Tables</option>
+                            <option value="foods">foods</option>
+                            <option value="inventory">inventory</option>
+                            <option value="orders">orders</option>
+                            <option value="users">users</option>
+                            <option value="ai_model">ai_model</option>
+                            <option value="reports">reports</option>
+                            <option value="auth">auth</option>
+                        </select>
+                    </div>
+                    <!-- Row 2 -->
+                    <div class="px-5 py-3 flex flex-wrap items-center gap-4 bg-white/20 border-t border-black/5">
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] font-bold text-text-muted uppercase">From</label>
+                            <input id="filterFrom" type="date"
+                                class="px-3 py-1.5 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-xs outline-none" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] font-bold text-text-muted uppercase">To</label>
+                            <input id="filterTo" type="date"
+                                class="px-3 py-1.5 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-xs outline-none" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] font-bold text-text-muted uppercase">IP</label>
+                            <input id="filterIp" type="text"
+                                class="w-32 px-3 py-1.5 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded-lg text-xs outline-none font-mono placeholder-text-muted/50"
+                                placeholder="192.168..." />
+                        </div>
+                        <div class="flex-1 text-right">
+                            <button onclick="clearAllFilters()"
+                                class="text-xs font-bold text-text-muted hover:text-danger-red hover:underline transition-colors">Clear
+                                All Filters</button>
+                        </div>
+                    </div>
+                    <!-- Active Filter Pills (Dynamic) -->
+                    <div id="filterPillsContainer" class="px-5 py-2 bg-black/5 flex flex-wrap gap-2 hidden"></div>
+                </div>
+
+                <!-- ═══════════ SECTION 3 & 4 — TABLE AND PAGINATION ═══════════ -->
+                <div class="glass-panel rounded-b-2xl shadow-glass overflow-hidden mb-8">
+                    <!-- Table -->
+                    <div class="overflow-x-auto relative min-h-[400px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30 sticky top-0 z-10 backdrop-blur-md">
+                                    <th class="px-4 py-3 min-w-[140px]">Timestamp</th>
+                                    <th class="px-4 py-3 min-w-[200px]">Admin</th>
+                                    <th class="px-4 py-3 min-w-[120px]">Action Type</th>
+                                    <th class="px-4 py-3 min-w-[100px]">Target</th>
+                                    <th class="px-4 py-3 min-w-[280px]">Summary</th>
+                                    <th class="px-4 py-3 min-w-[120px]">IP Address</th>
+                                    <th class="px-4 py-3 w-12 text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody"></tbody>
+                        </table>
+
+                        <!-- Loading Overlay -->
+                        <div id="tableLoading"
+                            class="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-20 hidden items-center justify-center">
+                            <div class="px-6 py-4 bg-white rounded-2xl shadow-xl flex items-center gap-3">
+                                <span
+                                    class="animate-spin material-symbols-outlined text-forest text-2xl">progress_activity</span>
+                                <span class="text-sm font-bold text-text-main">Fetching logs...</span>
+                            </div>
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="logsEmptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+                            <span
+                                class="material-symbols-outlined text-5xl text-text-muted/50 mb-3">manage_search</span>
+                            <p class="text-base font-bold text-text-main">No audit logs found</p>
+                            <p class="text-sm text-text-muted mt-1">Try adjusting your filters or clearing them to see
+                                all logs.</p>
+                            <button onclick="clearAllFilters()"
+                                class="mt-4 px-4 py-2 bg-text-muted/10 text-text-muted text-sm font-bold rounded-lg hover:bg-text-muted/20 transition-colors">Clear
+                                Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div
+                        class="p-4 border-t border-black/5 flex flex-wrap items-center justify-between bg-white/30 gap-y-4">
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-medium text-text-muted" id="pageInfo">Showing 0–0 of 0
+                                results</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-text-muted">Per page:</span>
+                                <select id="perPageSelect"
+                                    class="pl-2 pr-6 py-1 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded outline-none text-xs font-bold text-text-main">
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1" id="paginationControls">
+                            <!-- Controls generated via JS -->
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-text-muted uppercase">Jump to:</span>
+                            <input id="pageInput" type="number" min="1"
+                                class="w-14 px-2 py-1 bg-white/50 border border-black/5 focus:border-primary focus:ring-0 rounded outline-none text-xs font-bold text-center text-text-main" />
+                            <button onclick="jumpToPage()"
+                                class="px-2 py-1 bg-black/5 hover:bg-black/10 text-text-main rounded text-xs font-bold transition-colors">Go</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Micro-toast container for "Copied!" -->
+    <div id="microToast"
+        class="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full shadow-2xl opacity-0 pointer-events-none transition-opacity duration-200 z-50">
+        Copied to clipboard!</div>
+
+    <script src="../assets/js/admin-audit.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Inventory Management</title>
+
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)",
+                        "primary-dark": "var(--color-primary-dark, #0e9f15)",
+                        "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5",
+                        "surface-glass": "rgba(255, 255, 255, 0.7)",
+                        "text-main": "#1B261D",
+                        "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00",
+                        "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: {
+                        "glass": "0 8px 32px 0 rgba(17, 212, 27, 0.05)",
+                        "glass-hover": "0 12px 40px 0 rgba(17, 212, 27, 0.1)",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Layout Handler -->
+    <script src="../assets/js/layout.js"></script>
+
+    <style>
+        /* Background blobs */
+        .bg-blob-1 {
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 400px;
+            height: 400px;
+            background: rgba(251, 140, 0, 0.05);
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+        }
+
+        /* Shimmer */
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* Shake animation for invalid input */
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-4px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(4px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s ease;
+        }
+
+        /* Row flash green on save */
+        @keyframes flashGreen {
+            0% {
+                background: rgba(17, 212, 27, 0.15);
+            }
+
+            100% {
+                background: transparent;
+            }
+        }
+
+        .row-flash {
+            animation: flashGreen 1.5s ease-out;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px;
+        }
+
+        /* Out of stock card border */
+        .oos-urgent {
+            border-color: rgba(229, 57, 53, 0.4) !important;
+            box-shadow: 0 0 15px rgba(229, 57, 53, 0.08) !important;
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <!-- Sidebar Container -->
+        <div id="sidebar-container"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <!-- BG Blobs -->
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+
+            <!-- Topbar Container -->
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <!-- Page Header -->
+                <header class="mb-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Inventory Management
+                    </h2>
+                    <p class="text-text-muted text-lg mt-1">Manage stock levels and audit products</p>
+                </header>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 1 — SUMMARY STRIP (3 cards)     -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+                    <!-- Card 1: Total Items  📦 -->
+                    <div
+                        class="glass-panel rounded-xl p-6 relative overflow-hidden group hover:shadow-glass-hover transition-all">
+                        <div class="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span class="material-symbols-outlined text-[80px] text-forest">inventory_2</span>
+                        </div>
+                        <div class="relative z-10">
+                            <span class="text-text-muted font-medium text-sm uppercase tracking-wider">📦 Total
+                                Items</span>
+                            <p id="summaryTotal" class="text-4xl font-bold text-text-main mt-1 shimmer h-10 w-24">&nbsp;
+                            </p>
+                            <p class="text-text-muted text-sm mt-2">Global catalog count</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Low Stock  ⚠️ -->
+                    <div id="lowStockCard"
+                        class="glass-panel rounded-xl p-6 relative overflow-hidden group border-l-4 border-l-accent-orange cursor-pointer hover:shadow-glass-hover transition-all">
+                        <div class="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span class="material-symbols-outlined text-[80px] text-accent-orange">warning</span>
+                        </div>
+                        <div class="relative z-10">
+                            <span class="text-text-muted font-medium text-sm uppercase tracking-wider">⚠️ Low
+                                Stock</span>
+                            <p id="summaryLowStock" class="text-4xl font-bold text-text-main mt-1 shimmer h-10 w-16">
+                                &nbsp;</p>
+                            <p class="text-text-muted text-sm mt-2">Items below reorder level</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Out of Stock  🚫 -->
+                    <div id="outOfStockCard"
+                        class="glass-panel rounded-xl p-6 relative overflow-hidden group border-l-4 border-l-danger-red cursor-pointer hover:shadow-glass-hover transition-all">
+                        <div class="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <span
+                                class="material-symbols-outlined text-[80px] text-danger-red">production_quantity_limits</span>
+                        </div>
+                        <div class="relative z-10">
+                            <span class="text-text-muted font-medium text-sm uppercase tracking-wider">🚫 Out of
+                                Stock</span>
+                            <p id="summaryOutOfStock" class="text-4xl font-bold text-text-main mt-1 shimmer h-10 w-12">
+                                &nbsp;</p>
+                            <p class="text-text-muted text-sm mt-2">Restock required immediately</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 2 — FILTER & SEARCH BAR          -->
+                <!-- ═══════════════════════════════════════ -->
+                <div
+                    class="glass-panel p-2 rounded-2xl mb-4 shadow-glass flex flex-col md:flex-row items-center gap-3 sticky top-0 z-20">
+                    <div class="relative flex-1 w-full">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+                        <input id="searchInput"
+                            class="w-full pl-10 pr-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main placeholder-text-muted/70 transition-all outline-none text-sm"
+                            placeholder="Search by food name..." type="text" />
+                    </div>
+                    <select id="filterStatus"
+                        class="px-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                        <option value="all">All Status</option>
+                        <option value="Healthy">Healthy</option>
+                        <option value="Low Stock">Low Stock</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                    </select>
+                </div>
+                <p class="text-sm text-text-muted font-medium mb-4" id="resultsCount">Showing 0 of 0 items</p>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- SECTION 3 — INVENTORY TABLE               -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="glass-panel rounded-2xl overflow-hidden shadow-glass">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30">
+                                    <th class="px-6 py-4">Food Name</th>
+                                    <th class="px-6 py-4">Category</th>
+                                    <th class="px-6 py-4 text-right">Current Stock</th>
+                                    <th class="px-6 py-4 text-right">Reorder Level</th>
+                                    <th class="px-6 py-4 text-center">Status</th>
+                                    <th class="px-6 py-4 text-right">Last Updated</th>
+                                    <th class="px-6 py-4 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody">
+                                <!-- JS renders rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Empty State -->
+                    <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+                        <div class="bg-primary/10 p-6 rounded-full mb-4">
+                            <span class="material-symbols-outlined text-4xl text-primary">search_off</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-text-main mb-2">No items match your filter</h3>
+                        <p class="text-text-muted max-w-sm">Try adjusting your search or status filter.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Page Logic -->
+    <script src="../assets/js/admin-inventory.js"></script>
+</body>
+
+</html>

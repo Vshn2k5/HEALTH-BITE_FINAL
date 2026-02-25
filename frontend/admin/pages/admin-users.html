@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>HealthBite Admin - Users Management</title>
+
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "var(--color-primary, #11d41b)",
+                        "primary-dark": "var(--color-primary-dark, #0e9f15)",
+                        "forest": "var(--color-forest, #2E7D32)",
+                        "background-light": "#f4f7f5",
+                        "surface-glass": "rgba(255, 255, 255, 0.7)",
+                        "text-main": "#1B261D",
+                        "text-muted": "#738A76",
+                        "accent-orange": "#FB8C00",
+                        "danger-red": "#E53935",
+                    },
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] },
+                    boxShadow: {
+                        "glass": "0 8px 32px 0 rgba(17, 212, 27, 0.05)",
+                        "glass-hover": "0 12px 40px 0 rgba(17, 212, 27, 0.1)",
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Layout Handler -->
+    <script src="../assets/js/layout.js"></script>
+
+    <style>
+        .bg-blob-1 {
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 500px;
+            height: 500px;
+            background: rgba(17, 212, 27, 0.06);
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+        }
+
+        .bg-blob-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -5%;
+            width: 600px;
+            height: 600px;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+            background-size: 200% 100%;
+            animation: shimmerAnim 1.5s infinite;
+            border-radius: 6px;
+        }
+
+        @keyframes shimmerAnim {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        /* SVG risk ring animation */
+        .risk-ring {
+            transition: stroke-dashoffset 1s ease-out;
+        }
+
+        /* Popover */
+        .deactivate-popover {
+            position: absolute;
+            z-index: 50;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+        }
+
+        /* High-risk card highlight */
+        .high-risk-active {
+            border-color: rgba(251, 140, 0, 0.4) !important;
+            box-shadow: 0 0 15px rgba(251, 140, 0, 0.08) !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="font-display text-text-main antialiased min-h-screen selection:bg-primary/20">
+    <div class="flex h-screen w-full overflow-hidden">
+        <div id="sidebar-container"></div>
+
+        <main class="flex-1 h-full overflow-hidden relative flex flex-col ml-[280px]">
+            <div class="bg-blob-1"></div>
+            <div class="bg-blob-2"></div>
+            <div id="topbar-container"></div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12 relative z-10 scroll-smooth">
+
+                <!-- Page Header -->
+                <header class="mb-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-text-main tracking-tight">Users Management</h2>
+                    <p class="text-text-muted text-lg mt-1">Manage user accounts, roles, and health profiles.</p>
+                </header>
+
+                <!-- RBAC read-only banner (ANALYST role) -->
+                <div id="rbacBanner"
+                    class="hidden glass-panel p-4 rounded-xl mb-6 border-l-4 border-l-blue-400 flex items-center gap-3">
+                    <span class="text-blue-600 text-xl">👁</span>
+                    <p class="text-sm font-bold text-text-main">You have read-only access to this section.</p>
+                </div>
+
+                <!-- ═══════════ SECTION 1 — SUMMARY STRIP ═══════════ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-blue-50 text-blue-600"><span
+                                    class="material-symbols-outlined">group</span></div>
+                            <span class="text-text-muted text-sm font-medium">👥 Total Users</span>
+                        </div>
+                        <p id="summaryTotal" class="text-3xl font-bold text-text-main shimmer h-9 w-16">&nbsp;</p>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-600"><span
+                                    class="material-symbols-outlined">check_circle</span></div>
+                            <span class="text-text-muted text-sm font-medium">✅ Active Users</span>
+                        </div>
+                        <p id="summaryActive" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+                    <div class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-red-50 text-red-600"><span
+                                    class="material-symbols-outlined">block</span></div>
+                            <span class="text-text-muted text-sm font-medium">🚫 Deactivated</span>
+                        </div>
+                        <p id="summaryDeactivated" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+                    <div id="cardHighRisk"
+                        class="glass-panel p-5 rounded-xl shadow-glass hover:shadow-glass-hover transition-all cursor-pointer">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-2 rounded-lg bg-amber-50 text-amber-600"><span
+                                    class="material-symbols-outlined">warning</span></div>
+                            <span class="text-text-muted text-sm font-medium">⚠️ High Risk</span>
+                        </div>
+                        <p id="summaryHighRisk" class="text-3xl font-bold text-text-main shimmer h-9 w-12">&nbsp;</p>
+                    </div>
+                </div>
+
+                <!-- ═══════════ SECTION 2 — FILTER BAR ═══════════ -->
+                <div
+                    class="glass-panel p-2 rounded-2xl mb-4 shadow-glass flex flex-col md:flex-row items-center gap-3 sticky top-0 z-20">
+                    <div class="relative flex-1 w-full">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+                        <input id="searchInput"
+                            class="w-full pl-10 pr-4 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main placeholder-text-muted/70 transition-all outline-none text-sm"
+                            placeholder="Search by name or email..." type="text" />
+                    </div>
+                    <select id="filterRole"
+                        class="px-3 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                        <option value="all">All Roles</option>
+                        <option value="USER">USER</option>
+                        <option value="MANAGER">MANAGER</option>
+                        <option value="ANALYST">ANALYST</option>
+                        <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    </select>
+                    <select id="filterRisk"
+                        class="px-3 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                        <option value="all">All Risk</option>
+                        <option value="Low">Low</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="High">High</option>
+                    </select>
+                    <select id="filterStatus"
+                        class="px-3 py-3 bg-white/50 border-transparent focus:border-primary focus:ring-0 rounded-xl text-text-main font-medium text-sm cursor-pointer outline-none">
+                        <option value="all">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Deactivated">Deactivated</option>
+                    </select>
+                </div>
+                <p class="text-sm text-text-muted font-medium mb-4" id="resultsCount">Showing 0 of 0 users</p>
+
+                <!-- ═══════════ SECTION 3 — USERS TABLE ═══════════ -->
+                <div class="glass-panel rounded-2xl overflow-hidden shadow-glass">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="border-b border-black/5 text-[10px] uppercase tracking-wider text-text-muted font-bold bg-white/30">
+                                    <th class="px-4 py-4 w-12"></th>
+                                    <th class="px-4 py-4">Name & Email</th>
+                                    <th class="px-4 py-4">Role</th>
+                                    <th class="px-4 py-4">Health Risk</th>
+                                    <th class="px-4 py-4">Joined</th>
+                                    <th class="px-4 py-4">Last Active</th>
+                                    <th class="px-4 py-4 text-center">Status</th>
+                                    <th class="px-4 py-4 text-center actions-col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+                        <div class="bg-primary/10 p-6 rounded-full mb-4">
+                            <span class="material-symbols-outlined text-4xl text-primary">person_search</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-text-main mb-2">No users match your filter</h3>
+                        <p class="text-text-muted max-w-sm">Try adjusting your filters.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════ MODAL 1 — HEALTH SUMMARY ═══════════ -->
+    <div id="healthModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl p-0 w-full max-w-[560px] shadow-2xl mx-4 max-h-[85vh] overflow-y-auto"
+            id="healthModalContent">
+            <div id="healthModalBody"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════ MODAL 2 — CHANGE ROLE ═══════════ -->
+    <div id="roleModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl p-8 w-full max-w-[400px] shadow-2xl mx-4" id="roleModalContent">
+            <div id="roleModalBody"></div>
+        </div>
+    </div>
+
+    <script src="../assets/js/admin-users.js"></script>
+</body>
+
+</html>

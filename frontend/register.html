@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthBite | Create Your Profile</title>
+    <!-- Icons and Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --brand-secondary: #4f46e5;
+            --brand-accent: #f59e0b;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-white: rgba(255, 255, 255, 0.95);
+            --transition-master: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            background: #0f172a;
+            color: var(--text-main);
+            overflow: auto;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ultimate Mesh Background with Subtle Noise */
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 96%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(270, 100%, 97%, 1) 0, transparent 50%);
+        }
+
+        .page-bg::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .auth-card {
+            display: flex;
+            width: 92%;
+            max-width: 1100px;
+            min-height: 750px;
+            background: var(--glass-white);
+            backdrop-filter: blur(25px);
+            border-radius: 48px;
+            box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: cardEntrance 1.2s var(--transition-master);
+            margin: 40px 0;
+        }
+
+        @keyframes cardEntrance {
+            from {
+                opacity: 0;
+                transform: scale(0.92) translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Visual Master Section */
+        .banner-visual {
+            flex: 1;
+            background: linear-gradient(165deg, var(--brand-secondary) 0%, var(--brand-primary) 100%);
+            padding: 80px 70px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .banner-visual::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('https://images.unsplash.com/photo-1490645935967-10de6ba17061?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.12;
+            mix-blend-mode: overlay;
+            z-index: 0;
+        }
+
+        .visual-decor {
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 50%;
+            height: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            z-index: 1;
+        }
+
+        .logo-wrap {
+            width: 68px;
+            height: 68px;
+            background: white;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--brand-primary);
+            font-size: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            margin-bottom: 50px;
+            animation: floatLogo 6s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes floatLogo {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0);
+            }
+
+            50% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+        }
+
+        .content-stack {
+            position: relative;
+            z-index: 10;
+        }
+
+        .content-stack h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 0.95;
+            margin: 0 0 15px;
+            letter-spacing: -3px;
+        }
+
+        .content-stack .tagline {
+            font-size: 26px;
+            font-weight: 600;
+            color: var(--brand-accent);
+            margin-bottom: 35px;
+            display: block;
+            letter-spacing: -0.5px;
+        }
+
+        .content-stack p {
+            font-size: 18px;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 0;
+            max-width: 400px;
+        }
+
+        /* Interaction Panel */
+        .panel-interaction {
+            flex: 1.25;
+            padding: 80px 90px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .panel-content {
+            width: 100%;
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .form-head {
+            margin-bottom: 40px;
+        }
+
+        .form-head h2 {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin: 0 0 10px;
+            letter-spacing: -2px;
+        }
+
+        .form-head p {
+            color: var(--text-muted);
+            font-size: 17px;
+            font-weight: 500;
+        }
+
+        /* Modern Mode Switcher */
+        .mode-switcher {
+            display: flex;
+            position: relative;
+            background: #f1f5f9;
+            padding: 8px;
+            border-radius: 24px;
+            margin-bottom: 40px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            z-index: 2;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .mode-btn.active {
+            color: var(--brand-primary);
+        }
+
+        .slider-blob {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: calc(50% - 8px);
+            height: calc(100% - 16px);
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+            transition: var(--transition-master);
+            z-index: 1;
+        }
+
+        .mode-switcher.alt .slider-blob {
+            transform: translateX(100%);
+        }
+
+        .input-box {
+            margin-bottom: 24px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .field-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .field-container i {
+            position: absolute;
+            left: 24px;
+            color: var(--text-muted);
+            font-size: 18px;
+            transition: 0.3s;
+        }
+
+        .field-input {
+            width: 100%;
+            padding: 18px 24px 18px 64px;
+            background: #f8fafc;
+            border: 2.5px solid transparent;
+            border-radius: 22px;
+            font-family: inherit;
+            font-size: 16px;
+            transition: 0.3s;
+            color: var(--text-main);
+            box-sizing: border-box;
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            background: white;
+            box-shadow: 0 15px 40px rgba(99, 102, 241, 0.1);
+        }
+
+        .field-input:focus+i {
+            color: var(--brand-primary);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 20px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 22px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-master);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 15px;
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-submit:hover {
+            background: #4f46e5;
+            transform: translateY(-5px);
+            box-shadow: 0 20px 45px rgba(99, 102, 241, 0.35);
+        }
+
+        .auth-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .auth-footer a {
+            color: var(--brand-primary);
+            text-decoration: none;
+            font-weight: 800;
+            border-bottom: 2px solid transparent;
+            transition: 0.3s;
+        }
+
+        .auth-footer a:hover {
+            border-color: var(--brand-primary);
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .banner-visual {
+                display: none;
+            }
+
+            .auth-card {
+                max-width: 500px;
+                border-radius: 40px;
+            }
+
+            .panel-interaction {
+                padding: 60px 45px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .auth-card {
+                width: 95%;
+                margin: 20px auto;
+                min-height: auto;
+            }
+
+            .panel-interaction {
+                padding: 40px 25px;
+            }
+
+            .form-head h2 {
+                font-size: 32px;
+            }
+
+            .field-input {
+                padding: 15px 20px 15px 55px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg"></div>
+
+    <div class="auth-card">
+        <!-- Visual Section: Stylish & Aligned -->
+        <div class="banner-visual">
+            <div class="visual-decor"></div>
+
+            <div class="logo-wrap" style="animation: fadeUp 0.8s ease 0.2s both;">
+                <i class="fas fa-utensils"></i>
+            </div>
+
+            <div class="content-stack">
+                <h1 style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;">Join HealthBite</h1>
+                <span class="tagline" style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;">Eat Right.
+                    Stay Healthy.</span>
+                <p style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;">Create your profile to get
+                    personalized food suggestions based on your health conditions.</p>
+            </div>
+
+            <p
+                style="font-size: 13px; opacity: 0.7; font-weight: 600; margin-top: 80px; position: relative; z-index: 10; animation: fadeUp 1s ease 0.8s both;">
+                &copy; 2026 HealthBite Technologies • Simple & Healthy Eating
+            </p>
+        </div>
+
+        <!-- Aligned Registration Panel -->
+        <div class="panel-interaction">
+            <div class="panel-content" style="animation: fadeUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;">
+                <div class="form-head">
+                    <h2>Create Profile</h2>
+                    <p>Start your journey to better health today.</p>
+                </div>
+
+                <div class="mode-switcher" id="roleSwitcher">
+                    <div class="slider-blob"></div>
+                    <button class="mode-btn active" onclick="setRole('USER', this)">
+                        <i class="fas fa-user"></i> User
+                    </button>
+                    <button class="mode-btn" onclick="setRole('ADMIN', this)">
+                        <i class="fas fa-user-shield"></i> Admin
+                    </button>
+                </div>
+
+                <form id="registerForm" onsubmit="event.preventDefault(); register();">
+                    <div id="form-error-register"
+                        style="display:none; color: #ef4444; background: #fee2e2; padding: 15px; border-radius: 20px; margin-bottom: 25px; font-size: 14px; font-weight: 700; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+                    </div>
+
+                    <div id="admin-key-group" style="display: none;" class="input-box">
+                        <span class="input-label">Admin Security Key</span>
+                        <div class="field-container">
+                            <i class="fas fa-key"></i>
+                            <input type="password" id="reg-admin-key" class="field-input"
+                                placeholder="Staff Security Code">
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <span class="input-label">Full Name</span>
+                        <div class="field-container">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="reg-name" class="field-input" placeholder="Enter your full name"
+                                required>
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <span class="input-label">Email Address</span>
+                        <div class="field-container">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="reg-email" class="field-input" placeholder="name@email.com"
+                                required>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                        <div class="input-box" style="margin-bottom: 0;">
+                            <span class="input-label">Age</span>
+                            <input type="number" id="reg-age" class="field-input" style="padding-left: 20px;"
+                                placeholder="Ex: 21">
+                        </div>
+                        <div class="input-box" style="margin-bottom: 0;">
+                            <span class="input-label">Gender</span>
+                            <select id="reg-gender" class="field-input" style="padding-left: 20px;">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <span class="input-label">Password</span>
+                        <div class="field-container">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="reg-password" class="field-input"
+                                placeholder="Choose a secure password" required
+                                oninput="checkPasswordStrength(this.value)">
+                        </div>
+                        <!-- Password strength bar -->
+                        <div style="margin-top: 10px;">
+                            <div style="height: 5px; background: #e2e8f0; border-radius: 10px; overflow: hidden;">
+                                <div id="pw-strength-bar"
+                                    style="height: 100%; width: 0%; border-radius: 10px; transition: all 0.3s;"></div>
+                            </div>
+                            <p id="pw-hint" style="font-size: 12px; color: #94a3b8; margin: 6px 0 0; font-weight: 600;">
+                                Min 8 chars · Uppercase · Lowercase · Number · Special char (e.g. @#$!)</p>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                        Create Profile <i class="fas fa-check-circle"></i>
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    Already have an account? <a href="index.html">Login here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/script.js"></script>
+    <script>
+        let currentRole = 'USER';
+
+        function checkPasswordStrength(val) {
+            const bar = document.getElementById('pw-strength-bar');
+            const hint = document.getElementById('pw-hint');
+            let score = 0;
+            if (val.length >= 8) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[a-z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'];
+            const labels = ['Too weak', 'Weak', 'Fair', 'Strong', 'Very strong ✓'];
+            const widths = ['20%', '40%', '60%', '80%', '100%'];
+
+            bar.style.width = val.length ? widths[score - 1] || '20%' : '0%';
+            bar.style.background = colors[score - 1] || '#ef4444';
+            hint.textContent = val.length ? labels[score - 1] || 'Too weak' : 'Min 8 chars · Uppercase · Lowercase · Number · Special char (e.g. @#$!)';
+            hint.style.color = colors[score - 1] || '#94a3b8';
+        }
+
+        function setRole(role, el) {
+            currentRole = role;
+            const switcher = document.getElementById('roleSwitcher');
+            const tabs = switcher.querySelectorAll('.mode-btn');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            if (role === 'ADMIN') {
+                switcher.classList.add('alt');
+                if (document.getElementById('admin-key-group')) document.getElementById('admin-key-group').style.display = 'none';
+            } else {
+                switcher.classList.remove('alt');
+                if (document.getElementById('admin-key-group')) document.getElementById('admin-key-group').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

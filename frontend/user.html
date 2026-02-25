@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HealthBite - Your Intelligent Canteen Dashboard">
+    <title>HealthBite | User Dashboard</title>
+    <!-- Icons and Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="chatbot.css">
+    <script src="chatbot.js" defer></script>
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --brand-secondary: #4f46e5;
+            --brand-accent: #f59e0b;
+            --sidebar-bg: #f8fafc;
+            --sidebar-text: #64748b;
+            --sidebar-active-text: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-white: rgba(255, 255, 255, 0.85);
+            --transition-master: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            --safe-green: #10b981;
+            --warning-amber: #f59e0b;
+            --danger-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #ffffff;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: var(--brand-primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            margin-bottom: 20px;
+            z-index: 2000;
+        }
+
+        /* Ambient Mesh Background */
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 96%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(270, 100%, 97%, 1) 0, transparent 50%);
+        }
+
+        .page-bg::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(251, 191, 36, 0.1) 0%, transparent 40%);
+            pointer-events: none;
+        }
+
+        /* --- SIDEBAR --- */
+        aside.sidebar {
+            width: 280px;
+            height: 100vh;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px;
+            z-index: 1000;
+            flex-shrink: 0;
+            transition: var(--transition-master);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding: 0 10px;
+        }
+
+        .sidebar-brand .logo-box {
+            width: 40px;
+            height: 40px;
+            background: var(--brand-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .sidebar-brand h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            color: #0f172a;
+        }
+
+        .sidebar-brand span {
+            color: var(--brand-primary);
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-grow: 1;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 16px;
+            transition: var(--transition-master);
+        }
+
+        .nav-link i {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background: rgba(59, 130, 246, 0.05);
+            color: var(--brand-primary);
+        }
+
+        .nav-link.active {
+            background: white;
+            color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+        }
+
+        .nav-link .badge {
+            margin-left: auto;
+            background: var(--brand-primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 25px;
+        }
+
+        .nav-link.sign-out {
+            color: #ef4444;
+            margin-bottom: 25px;
+        }
+
+        .nav-link.sign-out:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        /* Sidebar Close Button */
+        .sidebar-close {
+            display: none;
+            background: #f1f5f9;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            color: #64748b;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+
+        .sidebar-close:hover {
+            background: #ffe4e6;
+            color: #e11d48;
+        }
+
+        .user-profile-summary {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+            margin-top: 10px;
+        }
+
+        .user-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .user-info-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .user-info-tag {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--brand-primary);
+            background: #eff6ff;
+            padding: 4px 10px;
+            border-radius: 100px;
+            display: inline-block;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .health-metric {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .metric-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 8px;
+        }
+
+        .metric-bar-container {
+            height: 8px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .glucose-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #64748b;
+        }
+
+        #health-score-val {
+            color: var(--brand-primary);
+            font-size: 13px;
+        }
+
+        #sidebar-glucose {
+            color: #0f172a;
+            font-size: 13px;
+        }
+
+        /* --- MAIN CONTENT --- */
+        main.main-content {
+            flex-grow: 1;
+            height: 100vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding: 60px;
+            position: relative;
+            transition: var(--transition-master);
+        }
+
+        main.main-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 35px;
+        }
+
+        .title-area h2 {
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            color: #0f172a;
+            line-height: 1.1;
+        }
+
+        .title-area h2 span {
+            color: var(--brand-primary);
+        }
+
+        .title-area p {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 15px;
+            margin-top: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .action-pill {
+            padding: 10px 24px;
+            background: var(--glass-white);
+            backdrop-filter: blur(10px);
+            border: 1px solid #e2e8f0;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .action-pill i {
+            color: var(--brand-primary);
+        }
+
+        .action-pill:hover {
+            transform: translateY(-2px);
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .action-pill.colored {
+            background: #dcfce7;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        /* --- SEARCH --- */
+        .search-container {
+            margin-bottom: 35px;
+            position: relative;
+            max-width: 600px;
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 20px 14px 50px;
+            background: var(--glass-white);
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: #0f172a;
+            outline: none;
+            transition: 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+        }
+
+        .search-input:focus {
+            background: white;
+            border-color: var(--brand-primary);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.1);
+        }
+
+        /* --- FILTERS --- */
+        .filter-ribbon {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 35px;
+        }
+
+        .filter-btn {
+            padding: 10px 22px;
+            border-radius: 100px;
+            border: 1px solid #e2e8f0;
+            background: var(--glass-white);
+            color: #64748b;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-btn.active {
+            background: var(--brand-primary);
+            color: white;
+            border-color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .filter-btn:hover:not(.active) {
+            background: white;
+            color: var(--brand-primary);
+            border-color: var(--brand-primary);
+        }
+
+        /* --- FOOD GRID --- */
+        .food-grid {
+            display: flex;
+            gap: 30px;
+            overflow-x: auto;
+            padding: 10px 0 50px;
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;
+            scrollbar-width: thin;
+        }
+
+        .food-grid::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .food-grid::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+        }
+
+        .food-grid::-webkit-scrollbar-thumb {
+            background: var(--brand-primary);
+            border-radius: 10px;
+        }
+
+        .food-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(25px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition-master);
+            overflow: hidden;
+            position: relative;
+            flex: 0 0 350px;
+            /* Fixed width for horizontal scroll */
+        }
+
+        .food-card:hover {
+            transform: translateY(-10px) scale(1.01);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .food-photo-wrap {
+            height: 220px;
+            border-radius: 32px;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+
+        .food-badge {
+            position: absolute;
+            top: 15px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+            font-weight: 800;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .food-badge.left {
+            left: 15px;
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .food-badge.left.caution {
+            background: rgba(245, 158, 11, 0.9);
+        }
+
+        .food-badge.left.danger {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        .food-badge.right {
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .progress-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 48px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+
+        .match-text {
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .match-text.perfect {
+            background: #10b981;
+        }
+
+        .match-text.good {
+            background: #f59e0b;
+        }
+
+        .match-text.low {
+            background: #ef4444;
+        }
+
+        .match-score {
+            color: white;
+            font-size: 13px;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-bar-bg {
+            position: absolute;
+            bottom: 15px;
+            left: 20px;
+            right: 20px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            background: #10b981;
+            border-radius: 10px;
+            transition: 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .food-meta {
+            margin-bottom: 20px;
+        }
+
+        .food-name {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+
+        .food-details {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 15px;
+        }
+
+        .food-details i {
+            color: var(--brand-accent);
+        }
+
+        .ai-insight-box {
+            background: #f0fdf4;
+            border-radius: 20px;
+            padding: 18px;
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: #166534;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-left: 5px solid #10b981;
+            min-height: 90px;
+            align-items: center;
+            transition: 0.3s;
+        }
+
+        .ai-insight-box.caution {
+            background: #fffbeb;
+            color: #92400e;
+            border-left-color: #f59e0b;
+        }
+
+        .ai-insight-box.danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border-left-color: #ef4444;
+        }
+
+        .ai-insight-box i {
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .ai-insight-label {
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 10px;
+            display: block;
+            margin-bottom: 6px;
+            letter-spacing: 1.2px;
+            color: #15803d;
+        }
+
+        .card-footer {
+            margin-top: auto;
+        }
+
+        .btn-add-tray {
+            width: 100%;
+            padding: 14px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 18px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-add-tray:hover {
+            background: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* --- TRAY BAR --- */
+        .tray-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #0f172a;
+            color: white;
+            padding: 20px 35px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            transform: translateY(150px);
+            transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tray-bar.active {
+            transform: translateY(0);
+        }
+
+        .tray-stats {
+            display: flex;
+            gap: 25px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 800;
+            opacity: 0.5;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .btn-checkout {
+            padding: 12px 30px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-checkout:hover {
+            transform: scale(1.05);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            main.main-content {
+                padding: 40px 30px;
+            }
+
+            .food-card {
+                flex: 0 0 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar-close {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                height: 100vh;
+            }
+
+            .sidebar.mobile-active {
+                left: 0;
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2);
+            }
+
+            main.main-content {
+                width: 100%;
+                padding: 40px 20px 120px;
+            }
+
+            .content-header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .action-pill {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .title-area h2 {
+                font-size: 28px;
+            }
+
+            .search-container {
+                max-width: 100%;
+            }
+
+            .tray-bar {
+                left: 20px;
+                right: 20px;
+                bottom: 20px;
+                padding: 15px 25px;
+                flex-direction: column;
+                gap: 15px;
+                border-radius: 30px;
+                transform: translateY(200px);
+            }
+
+            .tray-stats {
+                width: 100%;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .btn-checkout {
+                width: 100%;
+            }
+
+            .food-grid {
+                gap: 20px;
+            }
+
+            .food-card {
+                flex: 0 0 280px;
+                padding: 18px;
+                border-radius: 30px;
+            }
+
+            .food-photo-wrap {
+                height: 180px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .title-area h2 {
+                font-size: 24px;
+            }
+
+            .filter-ribbon {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+
+            .filter-btn {
+                flex-shrink: 0;
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg"></div>
+
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <button class="sidebar-close" id="sidebar-close-btn">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="sidebar-brand">
+            <div class="logo-box">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <h1>Health<span>Bite</span></h1>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="user.html" class="nav-link active"><i class="fas fa-home"></i> Home</a>
+            <a href="full-menu.html" class="nav-link"><i class="fas fa-th-large"></i> Full Menu</a>
+            <a href="health-analytics.html" class="nav-link"><i class="fas fa-chart-line"></i> Analytics</a>
+            <a href="orders.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Orders</a>
+            <a href="#" class="nav-link"><i class="fas fa-shopping-cart"></i> Cart <span class="badge"
+                    id="cart-badge">0</span></a>
+            <a href="health.html" class="nav-link" id="nav-health-profile"><i class="fas fa-user-circle"></i> Health
+                Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="#" onclick="logout()" class="nav-link sign-out"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+
+            <div class="user-profile-summary">
+                <div class="user-profile-header">
+                    <div class="user-avatar" id="sidebar-avatar">U</div>
+                    <div class="user-details-mini">
+                        <div class="user-info-name" id="sidebar-name">User</div>
+                        <div class="user-info-tag" id="sidebar-condition">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="health-metric">
+                    <div class="metric-label">
+                        <span>Health Score</span>
+                        <span id="health-score-val">82</span>
+                    </div>
+                    <div class="metric-bar-container">
+                        <div class="metric-bar" id="health-bar" style="width: 82%;"></div>
+                    </div>
+                </div>
+
+                <div class="glucose-metric">
+                    <span
+                        style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase;">Glucose</span>
+                    <span id="sidebar-glucose" style="color: #3b82f6;">--</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="title-area">
+                <button class="mobile-menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 id="personalized-title">Your Personalized <span>Lunch</span> Recommendations</h2>
+                <p id="personalized-subtitle">AI-curated selections based on your <span id="user-condition-pill"
+                        style="font-weight: 800;">Health Profile</span></p>
+            </div>
+
+            <div class="header-actions">
+                <a href="health-assistant.html" class="action-pill"><i class="fas fa-robot"></i> AI Assistant</a>
+                <div class="action-pill colored" id="time-pill">
+                    <i class="fas fa-clock"></i> <span id="current-time-display">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" class="search-input" id="food-search" placeholder="Search for healthy meals..."
+                oninput="searchFood()">
+        </div>
+
+        <div class="filter-ribbon">
+            <button class="filter-btn active" onclick="filterByTag('all', this)">All Recommended</button>
+            <button class="filter-btn" onclick="filterByTag('Low Carb', this)">Low Carb</button>
+            <button class="filter-btn" onclick="filterByTag('High Protein', this)">High Protein</button>
+            <button class="filter-btn" onclick="filterByTag('Sugar Free', this)">Sugar Free</button>
+            <button class="filter-btn" onclick="filterByTag('Low GI', this)">Low GI</button>
+        </div>
+
+        <div class="food-grid" id="food-showcase">
+            <!-- Items via JS -->
+            <div style="grid-column: 1/-1; text-align: center; padding: 100px; color: #64748b;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i>
+                <p>Curating your smart menu...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tray Bar -->
+    <div class="tray-bar" id="cart-bar">
+        <div class="tray-stats">
+            <div class="stat-item">
+                <span class="stat-label">Items</span>
+                <span class="stat-value" id="cart-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total</span>
+                <span class="stat-value" id="cart-price">₹0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Today's Cal</span>
+                <span class="stat-value"><span id="cart-cal">0</span> kCal</span>
+            </div>
+        </div>
+        <button class="btn-checkout" onclick="checkout()">Process Order</button>
+    </div>
+
+
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        const API_BASE = API_ROOT;
+        let tray = [];
+        let menuItems = [];
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', async function () {
+            const session = initializeUserSession();
+            if (!session) return;
+
+            // Check profile status
+            try {
+                const res = await fetch(`${API_ROOT}/health/check`, {
+                    headers: { 'Authorization': `Bearer ${session.token}` }
+                });
+                const info = await res.json();
+                if (!info.has_profile) {
+                    window.location.href = 'health.html';
+                    return;
+                }
+            } catch (e) {
+                console.error("Health check failed", e);
+            }
+
+            updateTime();
+            setInterval(updateTime, 60000);
+            init();
+        });
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            let meal = "Meal";
+            const hr = now.getHours();
+            if (hr < 11) meal = "Breakfast";
+            else if (hr < 16) meal = "Lunch";
+            else if (hr < 19) meal = "Snack";
+            else meal = "Dinner";
+
+            document.getElementById('current-time-display').textContent = `${meal} Time • ${timeStr}`;
+            document.getElementById('personalized-title').innerHTML = `Your Personalized <span>${meal}</span> Recommendations`;
+        }
+
+        async function init() {
+            const token = localStorage.getItem('token');
+            if (!token) { window.location.href = 'index.html'; return; }
+
+            const hasProfile = await checkProfileCompletion();
+            if (!hasProfile) {
+                window.location.href = 'health.html';
+                return;
+            }
+
+            const storedName = localStorage.getItem('hb_user_name');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // 1. User Identity & Status
+            fetch(`${API_BASE}/health/check`, { headers })
+                .then(res => res.json())
+                .then(data => {
+                    const activeName = data.name || storedName || "User";
+                    document.getElementById('sidebar-name').textContent = activeName;
+                    document.getElementById('sidebar-avatar').textContent = activeName.charAt(0).toUpperCase();
+                    if (data.name) localStorage.setItem('hb_user_name', data.name);
+
+                    // Update Health Profile menu if completed
+                    if (data.has_profile) {
+                        const healthLink = document.getElementById('nav-health-profile');
+                        if (healthLink) {
+                            healthLink.outerHTML = `
+                                <a href="health.html?view=report" class="nav-link"><i class="fas fa-file-medical"></i> Health Report</a>
+                                <a href="health.html?view=update" class="nav-link"><i class="fas fa-pen-to-square"></i> Update Profile</a>
+                            `;
+                        }
+                    }
+                })
+                .catch(err => console.error("Identity check failed:", err));
+
+            // 2. Profile Details
+            fetch(`${API_BASE}/health/profile`, { headers })
+                .then(res => res.ok ? res.json() : Promise.reject("No profile"))
+                .then(profile => {
+                    const cond = profile.disease && profile.disease.length > 0 ? profile.disease[0] : "General Health";
+                    document.getElementById('sidebar-condition').textContent = cond;
+                    document.getElementById('user-condition-pill').textContent = cond;
+                    document.getElementById('personalized-subtitle').innerHTML = `AI-curated selections based on your <strong>${cond}</strong> (Safety Score > 80)`;
+
+                    // BMI as a proxy for glucose for demo if needed, or static
+                    document.getElementById('sidebar-glucose').textContent = profile.bmi > 25 ? "6.8%" : "5.4%";
+
+                    // Random-ish health score based on BMI/Diseases
+                    let score = 90;
+                    if (profile.disease.length > 0) score -= 10;
+                    if (profile.bmi > 25 || profile.bmi < 18) score -= 8;
+                    document.getElementById('health-score-val').textContent = score;
+                    document.getElementById('health-bar').style.width = score + "%";
+                })
+                .catch(() => {
+                    document.getElementById('sidebar-condition').textContent = "Incomplete Profile";
+                    document.getElementById('user-condition-pill').textContent = "Complete Profile";
+                });
+
+            // 3. Menu
+            fetch(`${API_BASE}/menu/intelligent`, { headers })
+                .then(res => res.json())
+                .then(items => {
+                    menuItems = items;
+                    renderMenu(menuItems);
+                });
+
+            updateHUD();
+        }
+
+        function renderMenu(items) {
+            const container = document.getElementById('food-showcase');
+            if (items.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #64748b;">No items found for this category.</div>`;
+                return;
+            }
+            container.innerHTML = items.map(item => {
+                const riskClass = item.risk_level === 0 ? '' : (item.risk_level === 1 ? 'caution' : 'danger');
+                const riskLabel = item.risk_level === 0 ? 'SAFE' : (item.risk_level === 1 ? 'CAUTION' : 'HIGH RISK');
+                const riskIcon = item.risk_level === 0 ? 'fa-check-circle' : (item.risk_level === 1 ? 'fa-exclamation-circle' : 'fa-exclamation-triangle');
+
+                let matchLabel = 'Low Match';
+                let matchClass = 'low';
+                let scoreColor = '#ef4444';
+
+                if (item.match_score > 85) {
+                    matchLabel = 'Perfect Match';
+                    matchClass = 'perfect';
+                    scoreColor = '#10b981';
+                } else if (item.match_score > 60) {
+                    matchLabel = 'Good Match';
+                    matchClass = 'good';
+                    scoreColor = '#f59e0b';
+                }
+
+                return `
+                <div class="food-card" style="border-top: 4px solid ${item.risk_level === 0 ? '#10b981' : (item.risk_level === 1 ? '#f59e0b' : '#ef4444')}">
+                    <div class="food-photo-wrap">
+                        ${item.image}
+                        <div class="food-badge left ${riskClass}"><i class="fas ${riskIcon}"></i> ${riskLabel}</div>
+                        <div class="progress-overlay">
+                            <span class="match-text ${matchClass}">${matchLabel}</span>
+                            <span class="match-score">${item.match_score.toFixed(0)}%</span>
+                        </div>
+                        <div class="score-bar-bg">
+                            <div class="score-bar-fill" style="width: ${item.match_score}%; background: ${scoreColor};"></div>
+                        </div>
+                    </div>
+                    <div class="food-meta">
+                        <div class="food-name">${item.name}</div>
+                        <div class="food-details">
+                            <span><i class="fas fa-fire"></i> ${item.calories} kcal</span>
+                            <span>•</span>
+                            <span>${item.tag}</span>
+                        </div>
+                        <div class="ai-insight-box ${riskClass}">
+                            <i class="fas fa-brain"></i>
+                            <div>
+                                <span class="ai-insight-label">AI Health Analysis</span>
+                                ${item.insight}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn-add-tray" style="background: ${item.risk_level === 2 ? '#64748b' : 'var(--brand-primary)'}" onclick="addToTray(${item.id})">
+                            <i class="fas fa-plus-circle"></i> ${item.risk_level === 2 ? 'Add Anyway' : 'Add to Tray'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function filterByTag(tag, btn) {
+            // Update active state
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Reset search input when changing tags
+            document.getElementById('food-search').value = '';
+
+            if (tag === 'all') {
+                renderMenu(menuItems);
+            } else {
+                const filtered = menuItems.filter(item => item.tag === tag);
+                renderMenu(filtered);
+            }
+        }
+
+        function searchFood() {
+            const query = document.getElementById('food-search').value.toLowerCase();
+            const activeCategoryBtn = document.querySelector('.filter-btn.active');
+            const categoryText = activeCategoryBtn.textContent;
+
+            let baseList = menuItems;
+
+            if (categoryText !== 'All Recommended') {
+                const tag = categoryText === 'Sugar Free' ? 'Sugar Free' : (categoryText === 'Low Carb' ? 'Low Carb' : (categoryText === 'High Protein' ? 'High Protein' : 'Low GI'));
+                baseList = menuItems.filter(item => item.tag === tag);
+            }
+
+            const filtered = baseList.filter(item =>
+                item.name.toLowerCase().includes(query) ||
+                item.description.toLowerCase().includes(query)
+            );
+
+            renderMenu(filtered);
+        }
+
+        function updateHUD() {
+            const token = localStorage.getItem('token');
+            const today = new Date().toISOString().split('T')[0];
+            fetch(`${API_BASE}/menu/history`, { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(res => res.json())
+                .then(orders => {
+                    let c = 0;
+                    orders.forEach(o => {
+                        if (o.created_at.startsWith(today)) c += o.total_calories;
+                    });
+                    document.getElementById('cart-cal').textContent = c.toFixed(0);
+                });
+        }
+
+        function addToTray(id) {
+            const item = menuItems.find(x => x.id === id);
+            tray.push(item);
+            updateTray();
+        }
+
+        function updateTray() {
+            const bar = document.getElementById('cart-bar');
+            if (tray.length > 0) bar.classList.add('active');
+            else bar.classList.remove('active');
+
+            const totals = tray.reduce((acc, x) => {
+                acc.price += x.price;
+                return acc;
+            }, { price: 0 });
+
+            document.getElementById('cart-count').textContent = tray.length;
+            document.getElementById('cart-badge').textContent = tray.length;
+            document.getElementById('cart-price').textContent = "₹" + totals.price;
+        }
+
+        function checkout() {
+            const token = localStorage.getItem('token');
+            const totals = tray.reduce((acc, x) => {
+                acc.ids.push(x.id); acc.price += x.price; acc.cal += x.calories; acc.sugar += x.sugar; acc.sodium += x.sodium;
+                return acc;
+            }, { ids: [], price: 0, cal: 0, sugar: 0, sodium: 0 });
+
+            fetch(`${API_BASE}/menu/order`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: totals.ids, total_price: totals.price, total_calories: totals.cal, total_sugar: totals.sugar, total_sodium: totals.sodium
+                })
+            }).then(res => {
+                if (res.ok) {
+                    tray = []; updateTray(); updateHUD();
+                    alert("Order processed successfully!");
+                }
+            });
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        // Mobile Menu Logic
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebarClose = document.getElementById('sidebar-close-btn');
+        const sidebar = document.querySelector('.sidebar');
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.add('mobile-active');
+            });
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-active');
+            });
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 &&
+                !sidebar.contains(e.target) &&
+                !menuToggle.contains(e.target) &&
+                sidebar.classList.contains('mobile-active')) {
+                sidebar.classList.remove('mobile-active');
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,923 @@
+# 🔥 INTENSIVE BACKEND MASTER PLAN
+## Smart Canteen Admin System — Flask Backend
+
+---
+
+# 📐 ARCHITECTURE OVERVIEW
+
+```
+backend/
+├── app.py                    ← Flask app factory
+├── config.py                 ← Environment configs
+├── extensions.py             ← DB, JWT, CORS init
+├── middleware/
+│    ├── auth.py              ← JWT verification
+│    ├── rbac.py              ← Role enforcement
+│    └── audit.py            ← Auto audit logging
+├── admin/
+│    ├── __init__.py
+│    ├── dashboard/
+│    │    └── routes.py       ← Page 1 endpoints
+│    ├── foods/
+│    │    └── routes.py       ← Page 2 endpoints
+│    ├── inventory/
+│    │    └── routes.py       ← Page 3 endpoints
+│    ├── orders/
+│    │    └── routes.py       ← Page 4 endpoints
+│    ├── users/
+│    │    └── routes.py       ← Page 5 endpoints
+│    ├── analytics/
+│    │    └── routes.py       ← Page 6 endpoints
+│    ├── ai_monitor/
+│    │    └── routes.py       ← Page 7 endpoints
+│    ├── reports/
+│    │    └── routes.py       ← Page 8 endpoints
+│    └── audit/
+│         └── routes.py       ← Page 9 endpoints
+├── models/
+│    ├── user.py
+│    ├── food.py
+│    ├── inventory.py
+│    ├── order.py
+│    ├── order_item.py
+│    ├── audit_log.py
+│    ├── ai_log.py
+│    └── training_history.py
+├── services/
+│    ├── auth_service.py
+│    ├── analytics_service.py
+│    ├── ai_service.py
+│    ├── export_service.py
+│    └── audit_service.py
+├── utils/
+│    ├── response.py          ← Standardized responses
+│    ├── pagination.py        ← Reusable paginator
+│    ├── validators.py        ← Input validators
+│    └── formatters.py        ← Date/currency helpers
+└── requirements.txt
+```
+
+---
+
+# 🗄️ DATABASE SCHEMA — ALL TABLES
+
+```sql
+-- ═══════════════════════════════════════
+-- CORE TABLES
+-- ═══════════════════════════════════════
+
+CREATE TABLE users (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            VARCHAR(100) NOT NULL,
+  email           VARCHAR(255) UNIQUE NOT NULL,
+  password_hash   VARCHAR(255) NOT NULL,
+  role            VARCHAR(20) DEFAULT 'USER',
+    -- SUPER_ADMIN | MANAGER | ANALYST | USER
+  status          VARCHAR(20) DEFAULT 'active',
+    -- active | inactive
+  risk_level      VARCHAR(20) DEFAULT 'low',
+    -- low | moderate | high
+  risk_score      INTEGER DEFAULT 0,
+  conditions      TEXT[],
+    -- ['Diabetes', 'Hypertension', ...]
+  dietary_prefs   TEXT[],
+    -- ['Vegetarian', 'Gluten-Free', ...]
+  joined_at       TIMESTAMP DEFAULT NOW(),
+  last_active     TIMESTAMP,
+  created_by      UUID REFERENCES users(id)
+);
+
+CREATE TABLE food_items (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            VARCHAR(100) NOT NULL,
+  category        VARCHAR(50) NOT NULL,
+    -- Meals | Snacks | Beverages | Desserts | Healthy
+  calories        NUMERIC(6,2) NOT NULL,
+  sugar           NUMERIC(6,2) NOT NULL,
+  protein         NUMERIC(6,2) NOT NULL,
+  fat             NUMERIC(6,2) DEFAULT 0,
+  image_url       TEXT,
+  description     TEXT,
+  available       BOOLEAN DEFAULT TRUE,
+  created_at      TIMESTAMP DEFAULT NOW(),
+  updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE inventory (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  food_id         UUID REFERENCES food_items(id) ON DELETE CASCADE,
+  current_stock   INTEGER NOT NULL DEFAULT 0,
+  reorder_level   INTEGER NOT NULL DEFAULT 10,
+  last_updated    TIMESTAMP DEFAULT NOW(),
+  updated_by      UUID REFERENCES users(id)
+);
+
+CREATE TABLE orders (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number    VARCHAR(20) UNIQUE NOT NULL,
+    -- ORD-00001 format
+  user_id         UUID REFERENCES users(id),
+  status          VARCHAR(20) DEFAULT 'pending',
+    -- pending | completed | cancelled
+  total           NUMERIC(10,2) NOT NULL,
+  payment_method  VARCHAR(30),
+    -- Cash | UPI | Card
+  delivery_type   VARCHAR(20),
+    -- Dine-in | Takeaway
+  special_instructions TEXT,
+  created_at      TIMESTAMP DEFAULT NOW(),
+  updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE order_items (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id        UUID REFERENCES orders(id) ON DELETE CASCADE,
+  food_id         UUID REFERENCES food_items(id),
+  qty             INTEGER NOT NULL,
+  unit_price      NUMERIC(8,2) NOT NULL,
+  subtotal        NUMERIC(10,2) NOT NULL,
+  health_flag     BOOLEAN DEFAULT FALSE
+);
+
+-- ═══════════════════════════════════════
+-- AI TABLES
+-- ═══════════════════════════════════════
+
+CREATE TABLE ai_model_status (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  status          VARCHAR(20) DEFAULT 'active',
+    -- active | degraded | retraining
+  version         VARCHAR(20),
+  accuracy        NUMERIC(5,2),
+  precision_score NUMERIC(5,4),
+  recall_score    NUMERIC(5,4),
+  f1_score        NUMERIC(5,4),
+  last_trained    TIMESTAMP,
+  total_predictions BIGINT DEFAULT 0,
+  updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE ai_recommendation_logs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES users(id),
+  food_id         UUID REFERENCES food_items(id),
+  reason          TEXT,
+  confidence      NUMERIC(5,2),
+  match_score     INTEGER,
+  user_action     VARCHAR(20) DEFAULT 'no_response',
+    -- accepted | rejected | no_response
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE ai_training_history (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  triggered_by    UUID REFERENCES users(id),
+  started_at      TIMESTAMP DEFAULT NOW(),
+  ended_at        TIMESTAMP,
+  duration_seconds INTEGER,
+  accuracy_before NUMERIC(5,2),
+  accuracy_after  NUMERIC(5,2),
+  status          VARCHAR(20) DEFAULT 'in_progress',
+    -- success | failed | in_progress
+  notes           TEXT
+);
+
+CREATE TABLE ai_feature_importance (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature_name    VARCHAR(100),
+  importance      NUMERIC(5,4),
+  model_version   VARCHAR(20),
+  recorded_at     TIMESTAMP DEFAULT NOW()
+);
+
+-- ═══════════════════════════════════════
+-- AUDIT TABLE
+-- ═══════════════════════════════════════
+
+CREATE TABLE admin_audit_logs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id        UUID REFERENCES users(id),
+  action_type     VARCHAR(30) NOT NULL,
+    -- CREATE | UPDATE | DELETE | LOGIN |
+    -- LOGOUT | EXPORT | RETRAIN | STATUS_CHANGE
+  target_table    VARCHAR(50),
+  target_id       VARCHAR(100),
+  summary         TEXT,
+  payload         JSONB,
+  payload_before  JSONB,
+  payload_after   JSONB,
+  ip_address      VARCHAR(45),
+  user_agent      TEXT,
+  timestamp       TIMESTAMP DEFAULT NOW()
+);
+
+-- ═══════════════════════════════════════
+-- INDEXES FOR PERFORMANCE
+-- ═══════════════════════════════════════
+
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created ON orders(created_at);
+CREATE INDEX idx_orders_user ON orders(user_id);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_audit_admin ON admin_audit_logs(admin_id);
+CREATE INDEX idx_audit_action ON admin_audit_logs(action_type);
+CREATE INDEX idx_audit_table ON admin_audit_logs(target_table);
+CREATE INDEX idx_audit_timestamp ON admin_audit_logs(timestamp);
+CREATE INDEX idx_audit_ip ON admin_audit_logs(ip_address);
+CREATE INDEX idx_ai_logs_user ON ai_recommendation_logs(user_id);
+CREATE INDEX idx_ai_logs_action ON ai_recommendation_logs(user_action);
+CREATE INDEX idx_ai_logs_created ON ai_recommendation_logs(created_at);
+CREATE INDEX idx_inventory_food ON inventory(food_id);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_risk ON users(risk_level);
+CREATE INDEX idx_users_status ON users(status);
+```
+
+---
+
+# 🔐 MIDDLEWARE LAYER
+
+## 1. JWT Auth Middleware (`middleware/auth.py`)
+
+```python
+# Every protected route passes through this
+
+def require_auth(f):
+    """
+    Verifies JWT token from Authorization header.
+    Injects current_admin into Flask g object.
+    Returns 401 if missing or invalid.
+    Returns 403 if user is deactivated.
+    """
+
+def get_current_admin():
+    """
+    Returns admin user object from g.
+    Called inside route handlers.
+    """
+```
+
+## 2. RBAC Middleware (`middleware/rbac.py`)
+
+```python
+# Role hierarchy:
+# SUPER_ADMIN > MANAGER > ANALYST > USER
+
+ROLE_HIERARCHY = {
+    'SUPER_ADMIN': 4,
+    'MANAGER': 3,
+    'ANALYST': 2,
+    'USER': 1
+}
+
+def require_role(*roles):
+    """
+    Decorator factory.
+    Usage: @require_role('SUPER_ADMIN', 'MANAGER')
+    Returns 403 if current admin role not in allowed roles.
+    """
+
+def require_min_role(min_role):
+    """
+    Allows any role >= min_role in hierarchy.
+    Usage: @require_min_role('MANAGER')
+    Allows MANAGER + SUPER_ADMIN.
+    """
+```
+
+## 3. Audit Middleware (`middleware/audit.py`)
+
+```python
+def log_action(action_type, target_table,
+               target_id=None, payload=None,
+               before=None, after=None):
+    """
+    Called inside every write route handler.
+    Automatically captures:
+      - admin_id from g.current_admin
+      - ip_address from request.remote_addr
+      - user_agent from request.headers
+      - timestamp (auto)
+    Generates human-readable summary from params.
+    Inserts into admin_audit_logs table.
+    Non-blocking — runs after response sent.
+    """
+```
+
+---
+
+# 📡 ALL API ENDPOINTS — PAGE BY PAGE
+
+---
+
+## PAGE 1 — Dashboard
+
+```
+GET /api/admin/overview
+  Auth: ANALYST+
+  Returns:
+    revenue: { value, change }
+    orders:  { value, pending }
+    users:   { value, newThisMonth }
+    lowStock:{ value }
+  Logic:
+    revenue.value = SUM(orders.total) WHERE created_at >= today
+    revenue.change = compare vs same period last week
+    orders.value = COUNT(orders) WHERE DATE = today
+    orders.pending = COUNT WHERE status = 'pending' AND today
+    users.value = COUNT(users) WHERE status = 'active'
+    users.newThisMonth = COUNT WHERE joined_at >= month_start
+    lowStock.value = COUNT(inventory) WHERE
+      current_stock < reorder_level
+
+GET /api/admin/analytics/orders-by-hour-today
+  Auth: ANALYST+
+  Returns:
+    hours:  ['8AM', '9AM', ...]  ← up to current hour
+    counts: [12, 8, 23, ...]
+  Logic:
+    GROUP BY EXTRACT(HOUR FROM created_at)
+    WHERE DATE(created_at) = today
+    Filter to canteen open hours (8AM to current)
+
+GET /api/admin/analytics/sales
+  Auth: ANALYST+
+  Query params: period (7d | 30d | 90d)
+  Returns:
+    labels:  ['Mon', 'Tue', ...]
+    revenue: [45000, 38000, ...]
+    orders:  [120, 98, ...]
+  Logic:
+    GROUP BY DATE(created_at)
+    SUM(total) for revenue
+    COUNT(*) for orders
+    Within period range from today
+
+GET /api/admin/analytics/top-items
+  Auth: ANALYST+
+  Returns:
+    items: [{ rank, name, category, sold, revenue, share }]
+  Logic:
+    JOIN order_items + food_items
+    GROUP BY food_id
+    SUM(qty) as sold, SUM(subtotal) as revenue
+    ORDER BY sold DESC LIMIT 5
+    share = (item_revenue / total_revenue) * 100
+
+GET /api/admin/alerts
+  Auth: ANALYST+
+  Returns:
+    alerts: [{ type, message, time }]
+  Logic:
+    Check low stock items → warn alerts
+    Check failed AI model → error alert
+    Check cancelled spike → warn alert
+    Check new high risk users → info alert
+    Return max 10 most recent
+```
+
+---
+
+## PAGE 2 — Food Management
+
+```
+GET /api/admin/foods
+  Auth: ANALYST+
+  Returns: { foods: [...] }
+  Logic: SELECT all food_items ORDER BY created_at DESC
+
+POST /api/admin/foods
+  Auth: MANAGER+
+  Body: { name, category, calories, sugar, protein,
+          fat, stock, image_url, description, available }
+  Logic:
+    Validate all required fields
+    INSERT into food_items
+    INSERT into inventory (food_id, current_stock=stock,
+      reorder_level=10)
+    log_action('CREATE', 'foods', new_id, payload=body)
+  Returns: { food: {...}, message: 'Created' }
+
+PUT /api/admin/foods/:id
+  Auth: MANAGER+
+  Body: any subset of food fields
+  Logic:
+    Fetch existing record (store as before_state)
+    UPDATE food_items SET ... WHERE id = :id
+    log_action('UPDATE', 'foods', :id,
+      before=before_state, after=updated)
+  Returns: { food: {...}, message: 'Updated' }
+
+DELETE /api/admin/foods/:id
+  Auth: MANAGER+
+  Logic:
+    Soft check: if food has active orders → 400 error
+    DELETE food_items WHERE id = :id
+      (CASCADE deletes inventory row)
+    Notify AI service to exclude from recommendations
+    log_action('DELETE', 'foods', :id, payload=deleted_food)
+  Returns: { message: 'Deleted' }
+
+PUT /api/admin/foods/:id/availability
+  Auth: MANAGER+
+  Body: { available: Boolean }
+  Logic:
+    UPDATE food_items SET available = :available
+    If available = false:
+      AI service marks food as excluded
+    log_action('UPDATE', 'foods', :id,
+      before={ available: old }, after={ available: new })
+  Returns: { food: {...} }
+```
+
+---
+
+## PAGE 3 — Inventory
+
+```
+GET /api/admin/inventory
+  Auth: ANALYST+
+  Returns:
+    summary: { total, lowStock, outOfStock }
+    items: [{ food_id, name, category,
+              current_stock, reorder_level, last_updated }]
+  Logic:
+    JOIN inventory + food_items
+    summary counts calculated server-side
+    ORDER BY current_stock ASC (worst first)
+
+PUT /api/admin/inventory/:food_id
+  Auth: MANAGER+
+  Body: { quantity: Integer }
+  Validate: quantity >= 0, is integer
+  Logic:
+    Fetch old quantity (store as before)
+    UPDATE inventory SET current_stock = :quantity,
+      last_updated = NOW(), updated_by = admin_id
+    log_action('UPDATE', 'inventory', :food_id,
+      before={ stock: old }, after={ stock: new })
+  Returns: { item: {...}, message: 'Stock updated' }
+```
+
+---
+
+## PAGE 4 — Orders
+
+```
+GET /api/admin/orders
+  Auth: ANALYST+
+  Query params: status (all | pending | completed | cancelled)
+  Returns:
+    summary: { total, pending, completed, cancelled }
+    orders: [{ id, order_number, customer: {...},
+               items: [...], total, status,
+               payment_method, delivery_type,
+               special_instructions, created_at }]
+  Logic:
+    JOIN orders + users + order_items + food_items
+    Filter by status if provided
+    summary always returns all counts regardless of filter
+    Mark health_flag = TRUE on order_items where food
+      is in user's flagged categories
+
+PUT /api/admin/orders/:id/status
+  Auth: MANAGER+
+  Body: { status: 'completed' | 'cancelled' }
+  Validate:
+    Only allow: pending → completed | pending → cancelled
+    Reject if already completed or cancelled → 400
+  Logic:
+    Fetch old status
+    UPDATE orders SET status = :status, updated_at = NOW()
+    log_action('STATUS_CHANGE', 'orders', :id,
+      before={ status: old }, after={ status: new })
+  Returns: { order: {...}, message: 'Status updated' }
+```
+
+---
+
+## PAGE 5 — Users
+
+```
+GET /api/admin/users
+  Auth: ANALYST+
+  Returns:
+    summary: { total, active, deactivated, highRisk }
+    users: [{ id, name, email, role, risk_level,
+              risk_score, conditions, dietary_prefs,
+              status, joined_at, last_active,
+              order_stats: {...}, ai_insights: {...} }]
+  Logic:
+    order_stats: subquery COUNT + SUM + AVG on orders
+    ai_insights: subquery on ai_recommendation_logs
+    highRisk = COUNT WHERE risk_level = 'high'
+
+PUT /api/admin/users/:id
+  Auth: MANAGER+ for status change
+        SUPER_ADMIN only for role change
+  Body: { active: Boolean } OR { role: String }
+  Validate:
+    If role change: caller must be SUPER_ADMIN
+    If deactivating self: reject → 400
+    Role must be valid enum value
+  Logic:
+    Fetch old values
+    UPDATE users SET ... WHERE id = :id
+    log_action('UPDATE', 'users', :id,
+      before=old, after=new)
+  Returns: { user: {...}, message: 'Updated' }
+```
+
+---
+
+## PAGE 6 — Analytics
+
+```
+GET /api/admin/analytics/summary
+  Auth: ANALYST+
+  Query: from, to
+  Returns:
+    revenue: { value, change }
+    orders: { value, change }
+    avg_order_value: { value, change }
+    new_users: { value, change }
+  Logic:
+    Calculate current period totals
+    Calculate previous period totals (same duration)
+    change = ((current - prev) / prev) * 100
+
+GET /api/admin/analytics/revenue-by-category
+  Auth: ANALYST+
+  Query: from, to
+  Returns: { categories: [], values: [] }
+  Logic:
+    JOIN orders + order_items + food_items
+    GROUP BY food_items.category
+    SUM(order_items.subtotal) per category
+    Filter by date range
+
+GET /api/admin/analytics/popular-foods
+  Auth: ANALYST+
+  Query: from, to
+  Returns: { foods: [{ name, count, revenue }] }
+  Logic:
+    JOIN order_items + food_items + orders
+    GROUP BY food_id ORDER BY count DESC LIMIT 10
+    Filter by date range
+
+GET /api/admin/analytics/category-heatmap
+  Auth: ANALYST+
+  Query: from, to
+  Returns:
+    days: ['Mon',...,'Sun']
+    categories: ['Meals',...]
+    data: [[N, N, N, N, N, N, N], ...]  ← 5×7 matrix
+  Logic:
+    GROUP BY category + EXTRACT(DOW FROM created_at)
+    DOW 0=Sun...6=Sat → remap to Mon-Sun
+    Build matrix in Python before returning
+
+GET /api/admin/analytics/disease-distribution
+  Auth: ANALYST+
+  Returns: { conditions: [], counts: [] }
+  Logic:
+    UNNEST users.conditions
+    GROUP BY condition
+    COUNT users per condition
+    ORDER BY count DESC LIMIT 6
+
+GET /api/admin/analytics/risk-trends
+  Auth: ANALYST+
+  Query: from, to
+  Returns: { labels: [], low: [], moderate: [], high: [] }
+  Logic:
+    Requires historical risk snapshots table OR
+    Approximate from user join dates + risk_level
+    GROUP BY week/month + risk_level
+    Return counts per period per level
+
+GET /api/admin/analytics/peak-hours
+  Auth: ANALYST+
+  Query: from, to
+  Returns: { hours: [0..23], counts: [] }
+  Logic:
+    GROUP BY EXTRACT(HOUR FROM orders.created_at)
+    COUNT(*) per hour
+    Return all 24 hours (0 if no orders)
+
+GET /api/admin/analytics/top-spenders
+  Auth: ANALYST+
+  Query: from, to
+  Returns: { spenders: [{ name, email, total, orders }] }
+  Logic:
+    GROUP BY user_id
+    SUM(total) + COUNT(id)
+    ORDER BY total DESC LIMIT 5
+
+GET /api/admin/analytics/ai-impact
+  Auth: ANALYST+
+  Query: from, to
+  Returns:
+    served: Number
+    acceptance_rate: Number
+    health_improvement: Number
+    top_item: String
+  Logic:
+    served = COUNT(ai_recommendation_logs) in range
+    acceptance_rate = COUNT(accepted) / served * 100
+    health_improvement = custom metric from service
+    top_item = most recommended food_id → name
+```
+
+---
+
+## PAGE 7 — AI Monitoring
+
+```
+GET /api/admin/ai/status
+  Auth: ANALYST+
+  Returns:
+    status, version, last_trained,
+    total_predictions, metrics: { accuracy,
+    precision, recall, f1 }
+  Logic:
+    SELECT latest row from ai_model_status
+
+GET /api/admin/ai/features
+  Auth: ANALYST+
+  Returns: { features: [{ name, importance }] }
+  Logic:
+    SELECT from ai_feature_importance
+    WHERE model_version = current version
+    ORDER BY importance DESC LIMIT 8
+
+GET /api/admin/ai/accuracy-history
+  Auth: ANALYST+
+  Returns: { dates: [], accuracy: [], notes: [] }
+  Logic:
+    SELECT from ai_training_history
+    WHERE status = 'success'
+    ORDER BY ended_at ASC
+
+GET /api/admin/ai/logs
+  Auth: ANALYST+
+  Query: page, limit, risk, action, period, search
+  Returns: { total, page, pages, logs: [...] }
+  Logic:
+    JOIN ai_recommendation_logs + users + food_items
+    Apply filters, paginate
+    Return formatted rows
+
+GET /api/admin/ai/training-history
+  Auth: ANALYST+
+  Returns: { history: [...] }
+  Logic:
+    JOIN ai_training_history + users (triggered_by)
+    ORDER BY started_at DESC
+
+POST /api/admin/ai/retrain
+  Auth: SUPER_ADMIN only
+  Logic:
+    Check current status — reject if already retraining
+    INSERT ai_training_history (status=in_progress,
+      triggered_by=admin_id, accuracy_before=current)
+    UPDATE ai_model_status SET status='retraining'
+    Trigger background task (Celery/Thread)
+    log_action('RETRAIN', 'ai_model', payload={
+      triggered_by: admin_name,
+      accuracy_before: current
+    })
+  Returns: { message: 'Retraining started',
+             training_id: UUID }
+```
+
+---
+
+## PAGE 8 — Reports
+
+```
+GET /api/admin/export/:type/preview
+  Auth: ANALYST+
+  Types: sales | health | inventory
+  Query: all config params per report type
+  Returns:
+    total_rows: Number
+    columns: [String]
+    rows: [[...]]  ← first 10 rows
+    summary: { date_range, generated_at }
+  Logic:
+    Build query from config params
+    COUNT total rows
+    Return first 10 as 2D array
+    log_action('EXPORT', type + '_preview', payload=config)
+
+GET /api/admin/export/sales
+  Auth: ANALYST+
+  Query: from, to, group_by, format, sections[]
+  Logic:
+    Build dataset from orders + order_items + food_items
+    If format=csv: use Python csv module → StreamingResponse
+    If format=pdf: use reportlab/weasyprint → BytesIO
+    log_action('EXPORT', 'sales_report', payload=config)
+  Returns: File blob (csv or pdf)
+
+GET /api/admin/export/health
+  Auth: ANALYST+
+  Query: from, to, format, sections[], anonymize
+  Logic:
+    Build from users + ai_recommendation_logs
+    If anonymize=true: mask names/emails in output
+    Generate csv or pdf
+    log_action('EXPORT', 'health_report', payload=config)
+  Returns: File blob
+
+GET /api/admin/export/inventory
+  Auth: ANALYST+
+  Query: snapshot_date, sections[], categories[]
+  Logic:
+    JOIN inventory + food_items
+    Filter by categories if specified
+    CSV only
+    log_action('EXPORT', 'inventory_report', payload=config)
+  Returns: CSV blob
+```
+
+---
+
+## PAGE 9 — Audit Logs
+
+```
+GET /api/admin/audit/summary
+  Auth: ANALYST+
+  Returns:
+    total_actions: COUNT all time
+    today_actions: COUNT WHERE DATE = today
+    active_admins_today: COUNT DISTINCT admin_id today
+    last_action_at: MAX(timestamp)
+
+GET /api/admin/audit/admins
+  Auth: ANALYST+
+  Returns: { admins: [{ id, name }] }
+  Logic:
+    SELECT DISTINCT admin_id + name from audit_logs
+    JOIN users for name
+
+GET /api/admin/audit
+  Auth: ANALYST+
+  Query: page, limit, search, admin_id,
+         action_type, target_table, ip, from, to
+  Returns:
+    total, page, pages, per_page
+    logs: [{ all fields }]
+  Logic:
+    Full server-side filtering
+    Search via ILIKE on summary + payload::text
+    IP via ILIKE for partial match
+    All filters ANDed
+    ORDER BY timestamp DESC
+    Paginate
+```
+
+---
+
+# 🔄 STANDARD RESPONSE FORMAT
+
+```python
+# utils/response.py
+
+def success(data=None, message='Success', status=200):
+    return jsonify({
+        'success': True,
+        'message': message,
+        'data': data
+    }), status
+
+def error(message='Error', status=400, errors=None):
+    return jsonify({
+        'success': False,
+        'message': message,
+        'errors': errors or []
+    }), status
+
+# Every single endpoint uses these — no raw jsonify()
+```
+
+---
+
+# 🚦 HTTP STATUS CODE RULES
+
+```
+200 → Successful GET / PUT
+201 → Successful POST (resource created)
+400 → Validation failed / bad request
+401 → No token / invalid token
+403 → Valid token but wrong role
+404 → Resource not found
+409 → Conflict (e.g. retrain already running)
+422 → Business logic rejection
+  (e.g. can't delete food with active orders)
+500 → Server error (always log + return generic message)
+```
+
+---
+
+# 🔁 BACKGROUND TASKS (AI Retraining)
+
+```python
+# services/ai_service.py
+
+def retrain_model_async(training_id, admin_id):
+    """
+    Runs in background thread or Celery worker.
+
+    Steps:
+    1. Fetch current food + user + order data
+    2. Run ML model training
+    3. Calculate new metrics
+    4. UPDATE ai_model_status:
+         status = 'active'
+         accuracy, precision, recall, f1 = new values
+         last_trained = NOW()
+         version = bump version
+    5. INSERT new ai_feature_importance rows
+    6. UPDATE ai_training_history:
+         status = 'success'
+         ended_at = NOW()
+         duration = elapsed seconds
+         accuracy_after = new accuracy
+    7. If any step fails:
+         UPDATE ai_model_status SET status = 'degraded'
+         UPDATE training_history SET status = 'failed'
+    """
+```
+
+---
+
+# 🛡️ SECURITY RULES
+
+```
+Every endpoint:
+  ✔ JWT verified before any logic runs
+  ✔ Role checked before any DB query runs
+  ✔ Input validated before any DB write
+  ✔ Parameterized queries only — no string concat SQL
+  ✔ File exports: validate format param strictly
+  ✔ Rate limiting on POST endpoints (Flask-Limiter)
+  ✔ CORS restricted to admin frontend origin only
+
+Write endpoints additionally:
+  ✔ Audit log written AFTER successful operation
+  ✔ Before state captured BEFORE update
+  ✔ IP + user agent always captured from request
+```
+
+---
+
+# 📦 REQUIREMENTS
+
+```
+Flask==3.0.0
+Flask-JWT-Extended==4.6.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+Flask-CORS==4.0.0
+Flask-Limiter==3.5.0
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+reportlab==4.1.0        ← PDF generation
+celery==5.3.6           ← Background tasks (optional)
+redis==5.0.1            ← Celery broker (optional)
+gunicorn==21.2.0        ← Production server
+```
+
+---
+
+# 🗺️ BUILD ORDER
+
+```
+Week 1 — Foundation:
+  Day 1: app factory + config + extensions + DB connection
+  Day 2: All models + migrations
+  Day 3: Auth middleware + JWT login endpoint
+  Day 4: RBAC middleware + audit middleware
+  Day 5: Standard response + pagination utils
+
+Week 2 — Core Pages:
+  Day 1: Dashboard endpoints (Page 1)
+  Day 2: Food Management endpoints (Page 2)
+  Day 3: Inventory endpoints (Page 3)
+  Day 4: Orders endpoints (Page 4)
+  Day 5: Users endpoints (Page 5)
+
+Week 3 — Intelligence Layer:
+  Day 1-2: Analytics endpoints (Page 6) — most complex
+  Day 3: AI Monitoring endpoints (Page 7)
+  Day 4: Background retrain task
+  Day 5: Polling status + metrics update
+
+Week 4 — Reports + Audit + Polish:
+  Day 1-2: Reports + export endpoints (Page 8)
+  Day 3: Audit log endpoints (Page 9)
+  Day 4: Rate limiting + security hardening
+  Day 5: Integration testing all 9 pages
+```

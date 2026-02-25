@@ -1,0 +1,2654 @@
+## 🔷 MASTER PROMPT — Admin Dashboard Page 1
+
+Build an Admin Dashboard HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. Do not define any new colors, fonts,
+or CSS tokens — import and use what is already defined.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Dashboard"
+Page title: "Dashboard"
+
+═══════════════════════════════════════
+MAIN CONTENT — 3 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — KPI STATS ROW (4 cards):
+
+Card 1: Total Revenue
+  Value: ₹ formatted total
+  Below: percentage change vs last week
+  Change badge: green ↑ if positive, red ↓ if negative
+
+Card 2: Today's Orders
+  Value: total order count for today
+  Below: pending count shown separately
+
+Card 3: Active Users
+  Value: total active user count
+  Below: new users joined this month
+
+Card 4: Low Stock Alerts
+  Value: count of items below reorder threshold
+  Below: "Action needed!" if count > 0, else "All good"
+  Clicking this card navigates to inventory.html
+  Card border changes to danger color if count > 0
+  Notification dot on topbar bell if count > 0
+
+All cards show shimmer skeleton before data loads.
+
+SECTION 2 — CHARTS ROW (2 columns: 1fr + 1.6fr):
+
+Left — Orders by Hour Today (Bar chart):
+  Title: "Today's Order Activity"
+  Subtitle: "Orders placed per hour today"
+
+  X-axis: hours in 12hr format
+    Show only hours from canteen open to current hour
+    e.g. "8AM", "9AM" ... up to current hour only
+    Do not render future hours
+
+  Y-axis: order count
+
+  Bar color logic:
+    Current hour bar → accent color (cyan) with
+      subtle box-shadow glow effect
+    All past hours → accent color at 30% opacity
+    Future hours → not rendered
+
+  Reference line:
+    Horizontal dashed line at average order count
+    Calculated from chart data: sum(counts)/length
+    Labeled "Avg" at the right end of the line
+    Draw via Chart.js afterDraw hook on canvas context
+    Do not use any annotation plugin
+
+  Below chart — 2 quick-stat texts:
+    "🔥 Peak so far: [hour] ([N] orders)"
+    "📦 Quiet period: [hour] ([N] orders)"
+    Peak = hour with max count
+    Quiet = hour with min count excluding 0-count hours
+    Both calculated from API data — not fetched separately
+
+  Auto-refreshes every 5 minutes silently:
+    No skeleton flash on refresh
+    Just update chart data + quick-stats in place
+    Use chart.data.datasets[0].data = newData
+    Then chart.update()
+
+Right — Sales Overview (Mixed chart):
+  Title: "Sales Overview"
+  Subtitle: "Revenue & orders this period"
+
+  Dataset 1: Revenue per day — Bar type
+  Dataset 2: Orders per day — Line type, dashed, no fill
+
+  Dual Y-axes:
+    Left Y-axis: Revenue (₹)
+    Right Y-axis: Orders count
+
+  Period filter pills inside this card:
+    7D | 30D | 90D
+    Default active: 7D
+    Clicking a pill re-fetches only this chart
+    Does not affect any other section on page
+
+  Tooltip: shows both Revenue + Orders values on hover
+
+SECTION 3 — BOTTOM ROW (2 columns: 1.6fr + 1fr):
+
+Left — Top Selling Items table:
+  Title: "Top Selling Items"
+  "View All →" button top-right → navigates to
+    food-management.html
+
+  Columns:
+    # (rank badge) | Item | Category |
+    Sold | Revenue (₹) | Share %
+
+  Rank badges:
+    Rank 1 → gold   background + text
+    Rank 2 → silver background + text
+    Rank 3 → bronze background + text
+    Rank 4+ → muted plain badge
+
+  Share % column:
+    Mini horizontal progress bar + percentage number
+    Bar fill width = share % value
+    Bar color: accent color
+
+  Show 5 rows only — no pagination
+  Table loading: shimmer skeleton rows
+
+Right — Live Alerts panel:
+  Title: "⚡ Live Alerts"
+
+  Stacked alert items:
+    Each item:
+      Colored dot (warn / error / info)
+        warn  → warning color with glow
+        error → danger color with glow
+        info  → accent color with glow
+      Message text
+      Timestamp below message
+
+  If no alerts:
+    Show centered "No alerts right now ✓" in muted text
+
+  Alert items are read-only — no actions
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+  Check localStorage for 'admin_token'
+  Console warn if missing
+  // In production: window.location.href = '/login.html'
+
+apiFetch(endpoint, options)
+  Base URL: '/api/admin'
+  Injects: Authorization: Bearer {token} header
+  On HTTP error: calls showToast(error, 'error')
+  Returns: parsed JSON
+  Throws on failure
+
+showToast(message, type, duration)
+  Fixed bottom-right position
+  Types: 'success' ✅ / 'error' ❌ / 'warn' ⚠️
+  Slide-up animation on appear
+  Auto-removes after 3500ms
+  Multiple toasts stack vertically
+
+startClock()
+  Updates topbar live clock every 1000ms
+  Format: HH:MM:SS in 12hr with AM/PM
+
+loadAdminIdentity()
+  Decode JWT payload from localStorage
+  // jwt payload assumed: { name, role }
+  Fill: sidebar admin name, role tag, avatar initial
+  On decode failure: skip silently
+
+loadOverview()
+  // GET /api/admin/overview
+  Expected response:
+  {
+    revenue: { value: Number, change: String },
+    orders:  { value: Number, pending: Number },
+    users:   { value: Number, newThisMonth: Number },
+    lowStock:{ value: Number }
+  }
+  Populate all 4 KPI cards
+  Remove shimmer skeletons after data loads
+  If lowStock.value > 0:
+    Change card 4 border color to danger
+    Show notification dot on topbar bell icon
+
+loadHourlyChart()
+  // GET /api/admin/analytics/orders-by-hour-today
+  Expected response:
+  {
+    hours:  ['8AM', '9AM', ...],
+    counts: [12, 8, 23, ...]
+  }
+  Hours array contains only up to current hour
+
+  Build bar chart:
+    Last item in hours array = current hour
+      → accent color bar + glow box-shadow
+    All other bars → accent color at 0.3 opacity
+
+  Draw average reference line manually:
+    avg = Math.round(sum / counts.length)
+    In afterDraw plugin hook:
+      Calculate Y pixel position for avg value
+      Draw dashed horizontal line across chart width
+      Draw "Avg" text label at right edge
+
+  Calculate quick-stats from data:
+    peak  = hours[indexOf(max(counts))]
+    quiet = hours[indexOf(min(counts > 0))]
+  Update quick-stat text elements below chart
+
+  Store instance: hourlyChart
+
+loadSalesChart(period)
+  // GET /api/admin/analytics/sales?period={period}
+  Expected response:
+  {
+    labels:  ['Mon', 'Tue', ...],
+    revenue: [45000, 38000, ...],
+    orders:  [120, 98, ...]
+  }
+  Destroy existing salesChart instance if exists
+  Render mixed chart:
+    type: 'bar' for revenue dataset
+    type: 'line' for orders dataset (dashed)
+  Store instance: salesChart
+
+switchSalesPeriod(btn, period)
+  Remove 'active' class from all period pills
+  Add 'active' class to clicked pill
+  Store: currentPeriod = period
+  Call loadSalesChart(period)
+
+loadTopItems()
+  // GET /api/admin/analytics/top-items
+  Expected response:
+  {
+    items: [
+      {
+        rank: Number,
+        name: String,
+        category: String,
+        sold: Number,
+        revenue: Number,
+        share: Number
+      }
+    ]
+  }
+  Render 5 table rows
+  Apply rank badge class based on rank number
+  Render mini progress bar per row:
+    bar fill width = share + '%'
+
+loadAlerts()
+  // GET /api/admin/alerts
+  Expected response:
+  {
+    alerts: [
+      { type: String, message: String, time: String }
+    ]
+  }
+  If alerts.length === 0:
+    Show "No alerts right now ✓"
+  Else:
+    Render alert items with dot color per type
+
+startHourlyAutoRefresh()
+  // Silently refresh hourly chart every 5 minutes
+  hourlyRefreshInterval = setInterval(() => {
+    loadHourlyChart()   ← no skeleton, silent update
+  }, 5 * 60 * 1000)
+
+logoutHandler()
+  Show confirm dialog: "Sign out of Admin Panel?"
+  On confirm:
+    localStorage.removeItem('admin_token')
+    // In production: window.location.href = '/login.html'
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await loadOverview()
+  await Promise.all([
+    loadHourlyChart(),
+    loadSalesChart('7d'),
+    loadTopItems(),
+    loadAlerts()
+  ])
+  startHourlyAutoRefresh()
+  Attach listeners:
+    Logout button → logoutHandler
+    Card 4 click → window.location.href = 'inventory.html'
+    Sales period pills → switchSalesPeriod
+    Topbar bell click → scroll to alerts panel
+
+═══════════════════════════════════════
+STATE:
+═══════════════════════════════════════
+
+let hourlyChart = null
+let salesChart = null
+let currentPeriod = '7d'
+let hourlyRefreshInterval = null
+
+═══════════════════════════════════════
+CHART.JS SETUP:
+═══════════════════════════════════════
+
+Set global defaults before rendering any chart:
+  Chart.defaults.color = inherited from design file
+  Chart.defaults.font.family = inherited from design file
+  Chart.defaults.plugins.tooltip.backgroundColor = surface color
+  Chart.defaults.plugins.tooltip.borderWidth = 1
+  Chart.defaults.plugins.tooltip.padding = 12
+  Chart.defaults.scale.grid.color = very subtle rgba white
+
+Average reference line:
+  Do NOT use any plugin library
+  Register an inline afterDraw hook on the hourly chart only:
+  {
+    id: 'avgLine',
+    afterDraw(chart) {
+      const avg = chart.config.options.plugins.avgLine.value
+      if (!avg) return
+      const { ctx, chartArea, scales } = chart
+      const y = scales.y.getPixelForValue(avg)
+      ctx.save()
+      ctx.setLineDash([6, 4])
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(chartArea.left, y)
+      ctx.lineTo(chartArea.right, y)
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'
+      ctx.font = '10px DM Sans'
+      ctx.fillText('Avg', chartArea.right + 4, y + 4)
+      ctx.restore()
+    }
+  }
+  Pass avg value via:
+    options.plugins.avgLine = { value: calculatedAvg }
+
+═══════════════════════════════════════
+RULES:
+═══════════════════════════════════════
+
+- Zero hardcoded data — all values from API or skeletons
+- All colors via CSS variables from design file — no hex
+- Destroy salesChart before re-rendering on period switch
+- hourlyChart silent-refresh: update data + call chart.update()
+  Do not destroy and recreate on refresh
+- Low stock card reacts visually if count > 0
+- Period pills only affect the sales chart — nothing else
+- Average line drawn manually — no annotation plugin
+- Quick-stats calculated from response data in JS
+- Auto-refresh clears on page unload:
+    window.addEventListener('beforeunload', () =>
+      clearInterval(hourlyRefreshInterval))
+- Chart.js 4.4.1 via CDN only
+- One function = one responsibility
+- All API endpoint URLs written as comments
+  above every apiFetch() call
+```
+
+---
+
+## 🔷 MASTER PROMPT — Food Management Page 2
+
+```
+Build an Admin Food Management HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Food Management"
+Page title: "Food Management"
+
+═══════════════════════════════════════
+MAIN CONTENT — 3 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — PAGE HEADER ROW:
+
+Left: subtitle "Manage menu items, nutritional data
+  & availability" in muted color
+Right: "＋ Add Food" primary button
+  Click → opens Add Food modal
+
+SECTION 2 — FILTER & SEARCH BAR:
+
+Left: Search input — real-time filters table by food name
+Right (flex row):
+  Category dropdown: All | Meals | Snacks |
+    Beverages | Desserts | Healthy
+  Status dropdown: All | Available | Out of Stock
+  All 3 work together (AND logic) — client-side only
+
+Results count below bar: "Showing X of Y items"
+Updates as filters change.
+
+SECTION 3 — FOOD TABLE:
+
+Columns:
+  Image | Name & ID | Category | Calories |
+  Sugar (g) | Protein (g) | Stock | Status |
+  Availability Toggle | Actions
+
+Image column:
+  40×40px rounded square
+  If image_url: render <img> with object-fit: cover
+  If no URL: show placeholder emoji 🍽️
+
+Name column:
+  Food name bold
+  Food ID in muted smaller text below
+
+Category column:
+  Pill badge — unique color per category
+
+Nutritional columns:
+  Right-aligned numbers + unit label in muted text
+
+Stock column:
+  Colored number:
+    stock = 0    → danger color
+    stock < 10   → warning color
+    stock >= 10  → success color
+
+Status column:
+  Pill badge: "Available" → green | "Out of Stock" → red
+
+Availability Toggle:
+  CSS-only toggle switch
+  ON = Available, OFF = Out of Stock
+  Click → PUT /api/admin/foods/:id { available: Boolean }
+  Show spinner inside toggle during API call
+  On success: update status badge in row
+  On error: revert toggle + show error toast
+
+Actions column:
+  ✏️ Edit → opens Edit modal pre-filled with row data
+  🗑️ Delete → opens Delete Confirmation modal
+  Icon buttons with hover tooltips
+
+Table loading: 6 shimmer skeleton rows
+Empty state: centered "No food items found" + add button
+
+═══════════════════════════════════════
+MODAL 1 — ADD / EDIT FOOD:
+═══════════════════════════════════════
+
+Title: "Add New Food Item" or "Edit Food Item"
+Max-width: 580px, scrollable
+
+Form fields (2-column grid where noted):
+
+Row 1 (2 cols):
+  Food Name* — text input
+  Category* — select: Meals | Snacks | Beverages |
+    Desserts | Healthy
+
+Row 2 (2 cols):
+  Calories* — number input (min: 0)
+  Stock Quantity* — number input (min: 0)
+
+Row 3 (3 cols):
+  Sugar (g)* — number input
+  Protein (g)* — number input
+  Fat (g) — number input (optional)
+
+Row 4:
+  Image URL — text input full width
+  Below: live 40px thumbnail preview as user types
+
+Row 5:
+  Description — textarea 3 rows (optional)
+
+Row 6:
+  "Available on Menu" label + toggle switch
+  Default ON for new items
+
+Validation (on submit only):
+  Required: Name, Category, Calories, Stock, Sugar, Protein
+  Name: 2–100 chars
+  Numerics: non-negative
+  Image URL: if provided, must start with http(s)://
+  On fail: highlight field red + error message below
+    Scroll to first invalid field, do NOT close modal
+
+Footer:
+  "Cancel" ghost → close + reset form
+  "Save Food" / "Update Food" primary button
+    Loading spinner + disabled during API call
+
+Add mode:
+  POST /api/admin/foods
+  On success:
+    Close modal, prepend row to table
+    Update results count
+    Show success toast
+
+Edit mode:
+  Pre-fill all fields with existing data
+  PUT /api/admin/foods/:id
+  On success:
+    Close modal, update row in-place
+    Show success toast
+
+═══════════════════════════════════════
+MODAL 2 — DELETE CONFIRMATION:
+═══════════════════════════════════════
+
+Max-width: 420px
+Content:
+  Large ⚠️ icon centered
+  Title: "Delete Food Item?"
+  Body: "You are about to delete [FOOD NAME].
+    This will also remove it from the AI
+    recommendation engine and cannot be undone."
+  Food name shown in accent color
+
+Footer:
+  "Cancel" ghost → close, no action
+  "Yes, Delete" danger button
+    Spinner + "Deleting..." during API call
+    Disabled during call
+
+On confirm:
+  DELETE /api/admin/foods/:id
+  On success:
+    Close modal
+    Fade-out row (opacity 0 + height 0 over 300ms)
+    Remove from DOM after animation
+    Update count
+    Show success toast: "Deleted and removed
+      from recommendations"
+  On error: error toast, keep modal open
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadFoods()
+  Call GET /api/admin/foods
+  Expected:
+  {
+    foods: [{
+      id, name, category, calories, sugar,
+      protein, fat, stock, image_url,
+      description, available, created_at
+    }]
+  }
+  Store in: let foodsData = []
+  Call renderTable(foodsData)
+  Update results count
+
+renderTable(items)
+  Clear tbody, render rows via buildRow(item)
+
+buildRow(item)
+  Returns <tr> with all columns populated
+  Attaches toggle, edit, delete listeners
+
+openAddModal()
+  Clear form, set title + button text
+  Clear validation errors
+  Open modal
+
+openEditModal(item)
+  Pre-fill all fields
+  Set title + button text
+  Store: let editingId = item.id
+  Open modal
+
+closeModal()
+  Remove open class, reset form, clear editingId
+
+validateForm()
+  Check all required fields
+  Return { valid, errors }
+  Highlight invalid fields
+
+submitFood()
+  Call validateForm() — stop if invalid
+  Set button to loading state
+  If editingId null: POST (add mode)
+  If editingId set: PUT (edit mode)
+  Handle success/error per mode above
+  Reset button after call
+
+openDeleteModal(id, name)
+  Store: let deletingId = id
+  Inject name into modal text
+  Open delete modal
+
+confirmDelete()
+  Set button loading state
+  DELETE /api/admin/foods/:deletingId
+  Handle success (row fade-remove) / error
+
+toggleAvailability(id, currentState, rowEl)
+  PUT /api/admin/foods/:id { available: !currentState }
+  Show spinner in toggle during call
+  On success: update toggle + status badge in row
+  On error: revert toggle + error toast
+
+filterTable()
+  AND logic: search + category + status
+  Filter foodsData in memory
+  Call renderTable(filtered)
+  Update results count
+
+imagePreview(url)
+  On image URL input change
+  Update 40px preview thumbnail
+  Show placeholder emoji if URL invalid
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await loadFoods()
+  Attach listeners:
+    Search input → filterTable (input)
+    Dropdowns → filterTable (change)
+    Add button → openAddModal
+    Modal cancel → closeModal
+    Overlay click → closeModal
+    Escape key → closeModal
+    Form submit → submitFood
+    Image URL input → imagePreview
+    Delete cancel → closeDeleteModal
+    Delete confirm → confirmDelete
+
+STATE:
+  let foodsData = []
+  let editingId = null
+  let deletingId = null
+
+RULES:
+- All table operations update foodsData array in memory
+  then update DOM surgically — no full reload on edit/toggle
+- Full re-render only on initial load
+- Double-submit prevention on all forms
+- Escape key closes any open modal
+- Focus trapped inside modal while open
+- Fade-out animation on delete (300ms)
+- No Bootstrap, Tailwind, jQuery
+- One function = one responsibility
+- All API endpoints in comments above each call
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Inventory Page 3
+
+```
+Build an Admin Inventory Management HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Inventory"
+Page title: "Inventory Management"
+
+═══════════════════════════════════════
+MAIN CONTENT — 3 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — SUMMARY STRIP (3 stat cards):
+
+Card 1: Total Items
+  Icon: 📦 | Value: total inventory count
+
+Card 2: Low Stock
+  Icon: ⚠️ | Value: items below reorder level
+  Clicking filters table to low stock only
+
+Card 3: Out of Stock
+  Icon: 🚫 | Value: items at 0 quantity
+  Card border changes to danger color if value > 0
+
+All shimmer skeleton before data loads.
+
+SECTION 2 — FILTER & SEARCH BAR:
+
+Left: Search input — filters by food name in real-time
+Right:
+  Status filter dropdown:
+    All | Healthy | Low Stock | Out of Stock
+
+Client-side filtering — no new API call on filter.
+Results count: "Showing X of Y items"
+
+SECTION 3 — INVENTORY TABLE:
+
+Columns:
+  Food Name | Category | Current Stock |
+  Reorder Level | Status | Last Updated | Actions
+
+Sort order on render:
+  Out of Stock first → Low Stock → Healthy
+
+Status badge:
+  current = 0           → "Out of Stock" (danger)
+  current < reorder     → "Low Stock" (warning)
+  current >= reorder    → "Healthy" (success)
+
+Last Updated column:
+  Relative time: "2 hours ago" / "Yesterday" etc.
+  Use formatRelativeTime(isoString) helper
+
+Actions column — Inline Edit:
+  Default: current quantity as text + pencil icon button
+  On pencil click:
+    Convert to number input pre-filled with current value
+    Show "Save" (accent) + "Cancel" (ghost) buttons
+    Hide pencil icon
+  On Save:
+    Validate: must be number >= 0, not empty
+    If invalid: shake animation on input + error toast
+    If valid: PUT /api/admin/inventory/:food_id
+      Payload: { quantity: newValue }
+    On success:
+      Update row in-place
+      Recalculate status badge
+      Update summary strip counts
+      Show success toast
+      Revert to display mode
+      Flash row green briefly (fade out 1.5s)
+    On error: error toast, revert to original value
+  On Cancel: revert to display mode unchanged
+
+Table loading: 5 shimmer skeleton rows
+Empty state: "No items match your filter"
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadInventory()
+  Call GET /api/admin/inventory
+  Expected:
+  {
+    summary: {
+      total: Number,
+      lowStock: Number,
+      outOfStock: Number
+    },
+    items: [{
+      food_id, name, category,
+      current_stock, reorder_level, last_updated
+    }]
+  }
+  Store in: let inventoryData = []
+  Call updateSummaryStrip(data.summary)
+  Call renderTable(inventoryData)
+
+renderTable(items)
+  Sort: outOfStock → lowStock → healthy
+  Clear tbody, render rows
+
+getStatusBadge(current, reorder)
+  Returns badge HTML string:
+    current = 0 → Out of Stock (danger)
+    current < reorder → Low Stock (warning)
+    current >= reorder → Healthy (success)
+
+enableInlineEdit(row, foodId, currentQty)
+  Converts qty cell to input + Save/Cancel
+  Attaches save + cancel listeners
+
+saveStock(foodId, newQty, row, originalQty)
+  Validate: number >= 0, not empty
+  If invalid: shake animation + error toast, return
+  PUT /api/admin/inventory/:food_id { quantity: newQty }
+  On success:
+    Update inventoryData array in memory
+    Re-render that row only (not full table)
+    Recalculate status badge for that row
+    Call updateSummaryStrip() to recount
+    Flash row green, fade out over 1.5s
+    Show success toast
+  On error: error toast, revert to originalQty display
+
+updateSummaryStrip()
+  Recount total / lowStock / outOfStock from inventoryData
+  Update the 3 card values (no API call)
+
+filterTable()
+  Read search input + status dropdown
+  Filter inventoryData in memory
+  Call renderTable(filtered)
+  Update results count
+
+formatRelativeTime(isoString)
+  Returns: "2 hours ago" / "Yesterday" / "3 days ago" etc.
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await loadInventory()
+  Attach:
+    Search input → filterTable (input event)
+    Status dropdown → filterTable (change event)
+    Card 2 click → set filter to "Low Stock"
+    Card 3 click → set filter to "Out of Stock"
+
+STATE:
+  let inventoryData = []
+
+RULES:
+- Full re-render only on initial load
+- Inline edit updates single row surgically
+- updateSummaryStrip recalculates from memory (no API)
+- Shake animation on invalid quantity input
+- Row flash green on successful save
+- Inline edit of one row must not affect other rows
+- No Bootstrap, Tailwind, jQuery
+- One function = one responsibility
+- All API endpoints in comments above each call
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Orders Page 4
+
+```
+Build an Admin Orders Management HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Orders"
+Page title: "Orders Management"
+
+═══════════════════════════════════════
+MAIN CONTENT — 4 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — SUMMARY STRIP (4 stat cards):
+
+Card 1: Total Orders | Icon: 🧾
+Card 2: Pending     | Icon: ⏳ | Clicking filters to Pending tab
+Card 3: Completed   | Icon: ✅ | Clicking filters to Completed tab
+Card 4: Cancelled   | Icon: ✖️ | Border danger if value > 0
+  Clicking filters to Cancelled tab
+
+Counts update reactively when any order status changes.
+All shimmer skeleton before data loads.
+
+SECTION 2 — FILTER TAB BAR:
+
+Tabs: All | Pending | Completed | Cancelled
+Each tab shows a count badge pill next to label.
+
+Active tab: cyan bottom border + text
+Default active: All
+
+Tab click behavior:
+  Set active tab
+  Call GET /api/admin/orders?status={tab}
+  Show skeleton in table during fetch
+  "All" tab: no status param
+
+Secondary filter row (right-aligned):
+  Date From + Date To inputs
+  Search input: by Order ID or user name
+  Both filter CLIENT-SIDE on loaded data
+  "Clear Filters" link resets inputs + re-renders
+
+SECTION 3 — ORDERS TABLE:
+
+Columns:
+  ▶ Expand | Order ID | Customer |
+  Items Summary | Total | Status | Date & Time | Actions
+
+Expand column:
+  Chevron ▶ / ▼ button
+  Only one row expanded at a time
+  Smooth max-height transition on expand/collapse
+
+Order ID column:
+  Formatted: #ORD-00001 (zero-padded), monospace font
+  Copy icon on hover → copies ID → micro-toast "Copied!"
+
+Customer column:
+  32px avatar circle (initials + gradient) + name + email
+
+Items Summary column:
+  First 2 item names + "＋N more" if additional items
+
+Total column:
+  ₹ amount, bold | "(N items)" below in muted text
+
+Status column:
+  Pill badge:
+    Pending   → amber
+    Completed → green
+    Cancelled → red
+
+Date & Time column:
+  "21 Feb, 2:45 PM" + relative time below
+
+Actions column:
+  Status dropdown button (shows current status + arrow):
+    If Pending:   options: Mark Completed | Mark Cancelled
+    If Completed: show "Finalized" greyed out
+    If Cancelled: show "Cancelled" greyed out
+  Selecting option → opens Status Confirmation Modal
+
+Table loading: 7 shimmer skeleton rows
+Empty state: "No {status} orders found" per tab
+
+EXPANDABLE DETAIL ROW:
+
+Full-width row below parent. Single click to expand.
+Left column — Item breakdown sub-table:
+  Columns: Item | Qty | Unit Price | Subtotal
+  Final row: bold Total
+  Each item shows category badge
+
+Right column — Order metadata:
+  Order placed timestamp
+  Payment method with icon
+  Delivery type with icon
+  Special instructions (or "None")
+  If any item health_flag true:
+    Amber warning box: "⚠️ Contains items flagged
+      for this user's health profile"
+
+Footer of expanded row:
+  If Pending: shortcut buttons:
+    "Mark as Completed" green button
+    "Cancel Order" red ghost button
+  "Print Receipt" ghost button → window.print()
+
+═══════════════════════════════════════
+STATUS CHANGE CONFIRMATION MODAL:
+═══════════════════════════════════════
+
+Max-width: 380px
+
+Content:
+  Icon matching target status (✅ or ✖️)
+  Title: "Mark as Completed?" or "Cancel Order?"
+  Body: "Order #ORD-XXXXX will be marked as [STATUS].
+    This action will notify the customer."
+  Order ID in accent color
+
+Footer:
+  "Go Back" ghost → close, no action
+  "Confirm" button (green for Completed, red for Cancelled)
+    Spinner + "Updating..." during call
+    Disabled during call
+
+On confirm:
+  PUT /api/admin/orders/:id/status { status: targetStatus }
+  On success:
+    Close modal
+    Update status badge in row
+    Update dropdown button label
+    Update summary strip counts
+    Update tab badge counts
+    If filtered tab: fade-remove row (no longer matches)
+    Toast: "Order #ORD-XXXXX marked as [Status]"
+  On error: error toast, keep modal open
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadOrders(status)
+  Call GET /api/admin/orders?status={status}
+  status 'all' → omit param
+  Expected:
+  {
+    summary: {
+      total, pending, completed, cancelled
+    },
+    orders: [{
+      id, order_number, customer: {
+        name, email, avatar_initials
+      },
+      items: [{
+        food_id, name, category, qty,
+        unit_price, subtotal, health_flag
+      }],
+      total, status, payment_method,
+      delivery_type, special_instructions,
+      created_at
+    }]
+  }
+  Store in: let ordersData = []
+  Call updateSummaryStrip(summary)
+  Call updateTabCounts(summary)
+  Call renderTable(ordersData)
+
+renderTable(orders)
+  Clear tbody
+  Render each order via buildOrderRow(order)
+  + adjacent hidden expandable row
+
+buildOrderRow(order)
+  Returns <tr> with all columns
+  Attaches expand, copy ID, dropdown, confirm listeners
+
+buildExpandedRow(order)
+  Returns HTML for detail panel
+  Item sub-table + metadata + footer shortcuts
+
+getItemsSummary(items)
+  Returns "Item1, Item2 +N more" string
+
+toggleExpandRow(orderId)
+  Collapse all other rows
+  Toggle target row max-height + opacity
+  Flip chevron icon
+
+copyOrderId(orderId)
+  navigator.clipboard.writeText(orderId)
+  Show micro-toast near element: "✓ Copied!"
+
+openStatusDropdown(orderId, currentStatus, anchorEl)
+  Build + position custom dropdown near anchor
+  Show valid options based on currentStatus
+  Close on outside click or Escape
+  Option click → openStatusModal(orderId, targetStatus)
+
+openStatusModal(orderId, targetStatus)
+  Store updatingOrderId + targetStatus
+  Inject order number + status into modal text
+  Open modal
+
+confirmStatusChange()
+  Set button loading + disabled
+  PUT /api/admin/orders/:updatingOrderId/status
+  Handle success/error as above
+
+updateSummaryStrip(summary)
+  Update 4 card values, remove skeletons on first call
+
+updateTabCounts(summary)
+  Update badge pills on each tab
+
+filterOrders()
+  Client-side filter on ordersData
+  By: date from/to + search text
+  Call renderTable(filtered)
+
+switchTab(tab)
+  Update active tab styling
+  Store: let activeTab = tab
+  Call loadOrders(tab)
+
+formatRelativeTime(isoString)
+formatDateTime(isoString)
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await loadOrders('all')
+  Attach:
+    Tab clicks → switchTab
+    Date inputs + search → filterOrders (input)
+    Clear filters → reset + filterOrders
+    Summary cards → switchTab to relevant tab
+    Status modal cancel → closeStatusModal
+    Status modal confirm → confirmStatusChange
+    Outside click → close open dropdown
+
+STATE:
+  let ordersData = []
+  let activeTab = 'all'
+  let expandedOrderId = null
+  let updatingOrderId = null
+  let targetStatus = null
+
+RULES:
+- Tab switch = new server fetch
+- Date/search filter = client-side only
+- One row expanded at a time
+- Status change updates 4 UI elements simultaneously:
+    badge + dropdown + summary strip + tab counts
+- Double-submit prevention on confirm button
+- Dropdown closes on Escape + outside click
+- No Bootstrap, Tailwind, jQuery
+- One function = one responsibility
+- All API endpoints in comments above each call
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Users Management Page 5
+
+```
+Build an Admin Users Management HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Users"
+Page title: "Users Management"
+
+═══════════════════════════════════════
+MAIN CONTENT — 3 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — SUMMARY STRIP (4 stat cards):
+
+Card 1: Total Users    | Icon: 👥
+Card 2: Active Users   | Icon: ✅
+Card 3: Deactivated    | Icon: 🚫
+Card 4: High Risk Users| Icon: ⚠️
+  Card 4 border changes to warning color if value > 0
+  Clicking card 4 filters table to high-risk users
+
+All shimmer skeleton before data loads.
+
+SECTION 2 — FILTER BAR:
+
+Left: Search input by name or email
+
+Right (flex row):
+  Role dropdown: All | USER | MANAGER | ANALYST | SUPER_ADMIN
+  Risk dropdown: All | Low | Moderate | High
+  Status dropdown: All | Active | Deactivated
+
+All 4 filters: AND logic, client-side only
+Results count: "Showing X of Y users"
+
+SECTION 3 — USERS TABLE:
+
+Columns:
+  Avatar | Name & Email | Role | Health Risk |
+  Joined | Last Active | Status | Actions
+
+Avatar:
+  40px circle, initials, gradient from name hash
+  5 preset gradients for variety
+
+Role badge:
+  SUPER_ADMIN → cyan
+  MANAGER     → purple
+  ANALYST     → blue
+  USER        → muted
+
+Health Risk badge:
+  Low → green | Moderate → amber | High → red
+  Risk score number shown next to badge
+
+Last Active:
+  Relative time or "Never" in muted danger if never
+
+Status badge:
+  Active → green | Deactivated → red
+  Deactivated users: name has line-through + row opacity 0.65
+
+Actions column — RBAC controlled:
+  👁️ View Health Summary → opens Health Modal
+  🔑 Change Role → opens Role Modal
+    (only visible if currentAdminRole === 'SUPER_ADMIN')
+  🚫 Deactivate / ✅ Reactivate button
+    (visible to MANAGER and above)
+
+RBAC visibility rules (detect from JWT on load):
+  ANALYST:
+    All action buttons hidden
+    Show full-width read-only banner above table:
+    "👁 You have read-only access to this section."
+  MANAGER:
+    Role change button hidden
+    Can deactivate/reactivate
+  SUPER_ADMIN:
+    Full access to all actions
+
+Table loading: 6 shimmer skeleton rows
+Empty state: per active filter message
+
+═══════════════════════════════════════
+MODAL 1 — HEALTH SUMMARY (read-only):
+═══════════════════════════════════════
+
+Max-width: 560px, scrollable
+Triggered by: 👁️ View button
+
+Header:
+  56px avatar circle + name + email
+  Role badge + status badge
+
+Section A — Risk Overview:
+  Large risk score (0–100) centered
+  SVG circular progress ring around it
+  Color: green/amber/red based on score
+  Ring animates on modal open (stroke-dashoffset)
+  Label below: "High Risk Profile" etc.
+
+Section B — Health Conditions:
+  "Reported Conditions" heading
+  Pill tags per condition (unique colors)
+  Empty: "None reported"
+
+Section C — Dietary Preferences:
+  Pill tags (Vegetarian, Gluten-Free, etc.)
+  Empty: "No preferences set"
+
+Section D — Order Summary:
+  3 mini-stats: Total Orders | Total Spent | Avg Value
+
+Section E — AI Insights:
+  "Most recommended: [category]"
+  "Flagged items: [count]"
+  "Compliance rate: [X]%" with mini progress bar
+
+Footer:
+  "Close" button
+  "View Order History →" → orders.html?user_id={id}
+
+═══════════════════════════════════════
+MODAL 2 — CHANGE ROLE:
+═══════════════════════════════════════
+
+Max-width: 400px
+Triggered by: 🔑 button (SUPER_ADMIN only)
+
+Content:
+  User name + current role at top
+  4 role option cards (not a dropdown):
+    USER | ANALYST | MANAGER | SUPER_ADMIN
+    Each: role name + one-line permission description
+    Current role: highlighted, cannot re-select
+    Selected new role: accent border highlight
+
+  If SUPER_ADMIN selected:
+    Amber warning: "⚠️ This grants full system control."
+
+Footer:
+  "Cancel" ghost
+  "Update Role" primary (disabled if same role selected)
+    Spinner during API call
+
+On confirm:
+  PUT /api/admin/users/:id { role: selectedRole }
+  On success:
+    Close modal
+    Update role badge in row in-place
+    Toast: "Role updated to [ROLE]"
+    If admin changed their own role:
+      Toast: "Your role changed. Reloading..."
+      Reload after 2 seconds
+  On error: error toast, keep modal open
+
+═══════════════════════════════════════
+DEACTIVATE / REACTIVATE FLOW:
+═══════════════════════════════════════
+
+No modal — inline confirmation popover near button:
+  "Deactivate [Name]? They will lose system access."
+  "Yes, Deactivate" danger button + "Cancel" link
+
+On confirm:
+  PUT /api/admin/users/:id { active: false/true }
+  On success:
+    Update status badge in row
+    Toggle button icon between 🚫/✅
+    Apply/remove line-through + opacity on row
+    Update summary strip counts
+    Toast: "[Name] has been deactivated/reactivated"
+  On error: error toast
+
+Popover closes on outside click or Escape.
+Only one popover open at a time.
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadUsers()
+  Call GET /api/admin/users
+  Expected:
+  {
+    summary: {
+      total, active, deactivated, highRisk
+    },
+    users: [{
+      id, name, email, role, risk_level,
+      risk_score, conditions, dietary_preferences,
+      status, joined_at, last_active,
+      order_stats: { total_orders, total_spent, avg_order_value },
+      ai_insights: { top_category, flagged_items, compliance_rate }
+    }]
+  }
+  Store in: let usersData = []
+  Call detectAdminRole()
+  Call applyRbacVisibility()
+  Call updateSummaryStrip(summary)
+  Call renderTable(usersData)
+
+detectAdminRole()
+  Decode JWT → extract role
+  Store: let currentAdminRole = ''
+
+applyRbacVisibility()
+  ANALYST → show read-only banner, hide action buttons
+  MANAGER → hide role-change buttons
+  SUPER_ADMIN → show all
+
+renderTable(users)
+  Clear tbody, render via buildUserRow(user)
+
+buildUserRow(user)
+  Returns <tr> with all columns
+  Applies deactivated styling if inactive
+  Attaches listener based on currentAdminRole
+
+getAvatarGradient(name)
+  Hash name → pick from 5 preset gradients
+
+openHealthModal(userId)
+  Find user in usersData
+  Populate all sections
+  Animate SVG risk ring on open
+  Open modal
+
+openRoleModal(userId)
+  Find user, store editingUserId
+  Render 4 role cards, highlight current
+  Open modal
+
+selectRole(role)
+  Update card highlights
+  Store: let selectedRole
+  Enable confirm button if different from current
+  Show/hide SUPER_ADMIN warning
+
+confirmRoleChange()
+  PUT /api/admin/users/:editingUserId { role: selectedRole }
+  Handle success/error
+
+openDeactivatePopover(userId, currentStatus, anchorEl)
+  Build + position popover near button
+  Close existing popover first
+  Attach confirm + cancel listeners
+
+confirmDeactivation(userId, targetStatus)
+  PUT /api/admin/users/:userId { active: targetStatus }
+  Update row in-place on success
+  Update summary counts
+
+filterUsers()
+  AND: search + role + risk + status
+  Filter usersData in memory
+  Call renderTable(filtered)
+  Update count
+
+updateSummaryStrip(summary)
+  Update 4 card values
+  Highlight card 4 if highRisk > 0
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await loadUsers()
+  Attach:
+    Filter inputs → filterUsers (input/change)
+    Card 4 click → set risk filter to High + filterUsers
+    Health modal close → closeHealthModal
+    Role modal cancel → closeRoleModal
+    Role modal confirm → confirmRoleChange
+    Role cards click → selectRole
+    Outside click → close popover
+
+STATE:
+  let usersData = []
+  let currentAdminRole = ''
+  let editingUserId = null
+  let selectedRole = null
+
+RULES:
+- RBAC enforced in UI before any render
+- JWT decoded on load to determine role
+- All table ops surgical — no full reload on action
+- One popover open at a time
+- SVG ring animates on modal open only
+- Role change for self triggers page reload
+- No Bootstrap, Tailwind, jQuery
+- One function = one responsibility
+- All API endpoints in comments above each call
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Analytics Page 6
+
+```
+Build an Admin Analytics Dashboard HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+Use Chart.js 4.4.1 via CDN for all charts.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Analytics"
+Page title: "Analytics"
+
+═══════════════════════════════════════
+GLOBAL DATE FILTER BAR:
+═══════════════════════════════════════
+
+Full-width card below topbar:
+  Preset pills: Today | 7 Days | 30 Days | 90 Days | Custom
+  Default active: 30 Days
+
+  Custom pill:
+    Reveals two date inputs (From / To)
+    Hidden when any preset active
+
+  Right side:
+    "Apply" primary button
+    "Export All" ghost button → triggers full export
+
+  Below bar:
+    "Showing data from [date] to [date]" text
+
+Date range stored in:
+  let dateFrom = ''
+  let dateTo = ''
+Passed as query params to ALL API calls.
+
+Apply button re-fetches every section simultaneously.
+
+═══════════════════════════════════════
+MAIN CONTENT — 5 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — KPI STRIP (4 cards):
+
+Card 1: Total Revenue (period)
+  ₹ formatted + change badge vs previous period
+Card 2: Total Orders (period)
+  Count + change badge
+Card 3: Avg Order Value
+  ₹ formatted + change badge
+Card 4: New Users (period)
+  Count + change badge
+
+Change badge: "+12.4% vs prev period"
+  Green if positive, red if negative
+All shimmer skeleton before data loads.
+
+SECTION 2 — SALES ROW (2 columns: 1.6fr + 1fr):
+
+Left — Revenue Over Time (Line chart):
+  Dataset 1: Revenue (₹) — area fill
+  Dataset 2: Orders count — dashed line, no fill
+  Dual Y-axes: Revenue left, Orders right
+  X-axis: date labels
+  Internal period pills: 7D | 30D | 90D
+    Override global filter for this chart only
+    Re-fetches only this chart on pill change
+
+Right — Revenue by Category (Doughnut):
+  5 categories: Meals | Snacks | Beverages |
+    Desserts | Healthy
+  Cutout: 65%
+  Custom Chart.js plugin renders total revenue
+    as text in center of doughnut
+  Legend shows value + percentage per category
+
+SECTION 3 — FOOD ANALYTICS ROW (2 columns):
+
+Left — Top 10 Most Ordered (Horizontal Bar):
+  Sorted descending by order count
+  Food names on Y-axis (truncate at 20 chars)
+  Value labels at end of each bar
+  Tooltip: name + count + revenue
+
+Right — Orders by Category × Day Heatmap:
+  7 columns (Mon–Sun) × 5 rows (categories)
+  Built as CSS grid — NOT Chart.js
+  Cell color intensity = order volume
+  Low → nearly transparent | High → full accent color
+  Cell shows order count as text
+  Tooltip on hover: "[Category] on [Day]: [N] orders"
+
+SECTION 4 — HEALTH ANALYTICS ROW (2 columns: 1fr + 1.4fr):
+
+Left — Disease Distribution (Doughnut):
+  Top 6 health conditions as segments
+  Center: total user count as text
+  Legend: condition name + count + percentage
+
+Right — Risk Level Trends (Area Line chart):
+  3 overlaid datasets (NOT stacked):
+    Low Risk → green line + light fill
+    Moderate → amber line + light fill
+    High Risk → red line + light fill
+  X-axis: weekly or monthly points
+  Y-axis: user count at each risk level
+  Tooltip: all 3 values on hover
+
+SECTION 5 — INSIGHT CARDS ROW (3 columns):
+
+Card 1 — Peak Order Hours:
+  24-bar bar chart (0–23 hours on X-axis)
+  Peak hour bar colored differently (accent glow)
+  Below chart: "🔥 Peak time: [hour range]"
+
+Card 2 — Top 5 Spenders:
+  Ranked list (not a chart):
+    Rank badge + avatar + name + ₹ total + order count
+  Gold/silver/bronze for top 3
+  "View User →" link per row → users.html
+
+Card 3 — AI Recommendation Impact:
+  3 mini-stats:
+    Recommendations Served: count
+    Acceptance Rate: % with progress bar
+    Health Improvement Rate: % with progress bar
+  "Most recommended item: [Food Name]" below
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+buildDateParams()
+  Returns: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+
+setPresetRange(preset)
+  today | 7d | 30d | 90d → set dateFrom, dateTo
+  Update "Showing data from..." text
+  Update active pill
+
+applyFilters()
+  Call all load functions simultaneously
+  Show loading skeleton on all chart cards
+
+loadKpiSummary()
+  GET /api/admin/analytics/summary + buildDateParams()
+  Expected:
+  {
+    revenue:         { value, change },
+    orders:          { value, change },
+    avg_order_value: { value, change },
+    new_users:       { value, change }
+  }
+  Populate KPI cards + change badges
+
+loadSalesChart(period)
+  GET /api/admin/analytics/sales + params + &chart_period=
+  Expected: { labels: [], revenue: [], orders: [] }
+  Destroy existing, render Line chart
+  Apply gradient fill via ctx.createLinearGradient()
+
+loadRevenuePieChart()
+  GET /api/admin/analytics/revenue-by-category + params
+  Expected: { categories: [], values: [] }
+  Render doughnut with center-text plugin
+
+loadPopularFoodsChart()
+  GET /api/admin/analytics/popular-foods + params
+  Expected: { foods: [{ name, count, revenue }] }
+  Render horizontal bar chart (top 10)
+
+loadCategoryHeatmap()
+  GET /api/admin/analytics/category-heatmap + params
+  Expected:
+  {
+    days: ['Mon',...,'Sun'],
+    categories: ['Meals',...],
+    data: [[...], ...]  ← 5×7 matrix of counts
+  }
+  Build CSS grid heatmap (no Chart.js)
+  calculateCellColor(value, maxValue):
+    Returns rgba with opacity = value/maxValue
+
+loadDiseaseChart()
+  GET /api/admin/analytics/disease-distribution + params
+  Expected: { conditions: [], counts: [] }
+  Render doughnut with center user count
+
+loadRiskTrendChart()
+  GET /api/admin/analytics/risk-trends + params
+  Expected: { labels: [], low: [], moderate: [], high: [] }
+  Render 3-dataset area line chart
+
+loadPeakHoursChart()
+  GET /api/admin/analytics/peak-hours + params
+  Expected: { hours: [0..23], counts: [] }
+  Render 24-bar chart
+  detectPeakHour(counts): returns index of max value
+  Color peak bar with accent glow
+
+loadTopSpenders()
+  GET /api/admin/analytics/top-spenders + params
+  Expected: { spenders: [{ name, email, total, orders }] }
+  Render ranked list with avatars
+
+loadAiStats()
+  GET /api/admin/analytics/ai-impact + params
+  Expected:
+  {
+    served, acceptance_rate,
+    health_improvement, top_item
+  }
+  Render stats + animate progress bars
+
+destroyChart(instance)
+  Safely destroy Chart.js instance if exists
+
+getChangeBadge(changePercent)
+  Returns HTML: ↑ green or ↓ red + formatted %
+
+switchSalesChartPeriod(btn, period)
+  Update active pill, call loadSalesChart(period)
+
+animateProgressBar(el, targetPct)
+  CSS width transition 0 → targetPct over 1.2s
+
+exportAll()
+  GET /api/admin/export/analytics + buildDateParams()
+  Trigger file download (blob)
+
+Chart.js global defaults (set before any chart renders):
+  color, font.family, font.size
+  tooltip: dark background + border
+  grid: very subtle color
+  legend: padding + label color
+
+Center text doughnut plugin:
+  Register custom plugin:
+    id: 'centerText'
+    afterDraw: render 2-line text in SVG center
+      Large value + small label below
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  setPresetRange('30d')
+  await Promise.all([
+    loadKpiSummary(),
+    loadSalesChart('30d'),
+    loadRevenuePieChart(),
+    loadPopularFoodsChart(),
+    loadCategoryHeatmap(),
+    loadDiseaseChart(),
+    loadRiskTrendChart(),
+    loadPeakHoursChart(),
+    loadTopSpenders(),
+    loadAiStats()
+  ])
+  Attach preset pill listeners
+  Attach custom date input listeners
+  Attach Apply + Export All listeners
+  Attach internal sales chart period pill listeners
+
+STATE:
+  let dateFrom = ''
+  let dateTo = ''
+  let activePreset = '30d'
+  let salesChart = null
+  let revenuePieChart = null
+  let popularFoodsChart = null
+  let diseaseChart = null
+  let riskTrendChart = null
+  let peakHoursChart = null
+
+RULES:
+- Destroy chart instances before every re-render
+- Date params passed to every single API call
+- Heatmap is CSS grid only — not Chart.js
+- Center text plugin registered globally before charts render
+- All chart cards show skeleton while loading
+- Apply button re-fetches all 10 sections simultaneously
+- Internal sales period pills only affect that chart
+- Progress bars animate on initial load
+- No Bootstrap, Tailwind, jQuery
+- Chart.js 4.4.1 via CDN only — no other chart libraries
+- One function = one responsibility
+- All API endpoints in comments above each call
+```
+
+---
+
+Here are all 3 prompts — logic and functionality only, no design specs:
+
+---
+
+## 🔷 MASTER PROMPT — AI Monitoring Page 7
+
+```
+Build an Admin AI Monitoring HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. Do not define any new colors, fonts,
+or CSS tokens — import and use what is already defined.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "AI Monitoring"
+Page title: "AI Monitoring"
+
+═══════════════════════════════════════
+MAIN CONTENT — 5 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — MODEL STATUS BAR:
+
+Full-width status card at the top.
+Shows current AI model state.
+
+Left side:
+  Large status indicator dot (animated pulse if Active)
+  Status label: "Active" | "Degraded" | "Retraining"
+  Sub-label: "Recommendation Engine v[version]"
+
+Center:
+  3 quick-stat pills in a row:
+    Last Trained: [relative date e.g. "3 days ago"]
+    Model Version: [e.g. "v2.4.1"]
+    Total Predictions: [count formatted]
+
+Right side:
+  "Retrain Model" button
+    Disabled if status is already "Retraining"
+    Click → opens Retrain Confirmation Modal
+
+Status dot pulse animation:
+  Active    → green pulsing glow
+  Degraded  → amber static dot
+  Retraining → cyan spinning ring (CSS animation)
+
+SECTION 2 — METRICS ROW (4 cards):
+
+Card 1: Model Accuracy
+  Value: percentage (e.g. "94.2%")
+  Progress bar below showing fill to that percentage
+  Color: green if >85%, amber if 60-85%, red if <60%
+
+Card 2: Precision Score
+  Value: 0.00 to 1.00 format
+  Progress bar below
+
+Card 3: Recall Score
+  Value: 0.00 to 1.00 format
+  Progress bar below
+
+Card 4: F1 Score
+  Value: 0.00 to 1.00 format
+  Progress bar below
+
+All cards show shimmer skeleton before data loads.
+Progress bars animate width from 0 on load.
+
+SECTION 3 — CHARTS ROW (2 columns):
+
+Left — Feature Importance (Horizontal Bar chart):
+  Title: "Feature Importance"
+  Subtitle: "What drives recommendations"
+  Top 8 features shown as horizontal bars
+  Features e.g.: Sugar Level, Calories, Disease Type,
+    Protein, User History, Time of Day, Category, Fat
+  Bars sorted descending by importance score
+  Each bar labeled with feature name + importance %
+  Value labels at end of each bar
+
+Right — Accuracy Over Time (Line chart):
+  Title: "Model Accuracy Trend"
+  Subtitle: "Per training cycle"
+  X-axis: training dates
+  Y-axis: accuracy percentage (0-100)
+  Single cyan line, smooth tension
+  Horizontal dashed reference line at 85%
+    labeled "Target Accuracy"
+  Points on line: clicking a point shows training
+    details in a small tooltip (date + accuracy + notes)
+
+SECTION 4 — RECOMMENDATION LOGS TABLE:
+
+Title: "Recent Recommendation Logs"
+Subtitle: "Live feed of AI recommendations served"
+
+Filter bar above table:
+  Search: by user name or food name
+  Risk filter: All | Low | Moderate | High
+  Accepted filter: All | Accepted | Rejected | No Response
+  Date filter: Today | Last 7 Days | Last 30 Days
+
+Table columns:
+  Timestamp | User | Health Risk | Recommended Food |
+  Reason | Confidence % | User Action | Match Score
+
+Timestamp: formatted datetime + relative time below
+User: avatar initials + name
+Health Risk: colored badge (Low/Moderate/High)
+Recommended Food: food name + category badge
+Reason: truncated text (max 40 chars) + expand on hover
+  Full reason shown in tooltip on hover
+Confidence %: colored pill
+  >85%  → green
+  60-85% → amber
+  <60%  → red
+User Action: badge
+  Accepted → green
+  Rejected → red
+  No Response → muted grey
+Match Score: numeric score out of 100
+
+Table pagination:
+  Show 20 rows per page
+  Previous / Next buttons
+  "Page X of Y" indicator
+  Page number input (type number, press Enter to jump)
+
+Table loading: shimmer skeleton rows
+Empty state: "No recommendation logs for selected filter"
+
+SECTION 5 — RETRAIN HISTORY TABLE:
+
+Title: "Training History"
+Smaller table below logs.
+
+Columns:
+  # | Triggered By | Date | Duration | Accuracy Before |
+  Accuracy After | Status | Notes
+
+Status badge:
+  Success   → green
+  Failed    → red
+  In Progress → cyan animated
+
+═══════════════════════════════════════
+RETRAIN CONFIRMATION MODAL:
+═══════════════════════════════════════
+
+Max-width: 440px
+
+Content:
+  🤖 icon (large, centered)
+  Title: "Retrain Recommendation Model?"
+  Body:
+    "This will trigger a full model retraining using
+     current food, user, and order data.
+     The process may take several minutes.
+     The model will remain active during retraining."
+  Warning box:
+    "⚠️ Retraining during peak hours may temporarily
+     reduce recommendation accuracy."
+
+Footer:
+  "Cancel" ghost button
+  "Start Retraining" primary button
+    Shows spinner + "Initiating..." during API call
+
+On confirm:
+  Call POST /api/admin/ai/retrain
+  On success:
+    Close modal
+    Update status bar to "Retraining" state
+    Start polling GET /api/admin/ai/status every 10 seconds
+    Show progress indicator in status bar
+    When polling returns status "Active":
+      Stop polling
+      Update status bar + accuracy metrics
+      Show success toast: "Model retrained successfully.
+        New accuracy: [X]%"
+  On error:
+    Show error toast: "Retraining failed. Please try again."
+    Keep button available
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadAiStatus()
+  Call GET /api/admin/ai/status
+  Expected:
+  {
+    status: String,
+    version: String,
+    last_trained: String,
+    total_predictions: Number,
+    metrics: {
+      accuracy: Number,
+      precision: Number,
+      recall: Number,
+      f1: Number
+    }
+  }
+  Populate status bar + 4 metric cards
+  Animate progress bars
+
+loadFeatureImportanceChart()
+  Call GET /api/admin/ai/features
+  Expected: { features: [{ name, importance }] }
+  Render horizontal bar chart
+
+loadAccuracyTrendChart()
+  Call GET /api/admin/ai/accuracy-history
+  Expected: { dates: [], accuracy: [], notes: [] }
+  Render line chart with reference line plugin
+
+loadRecommendationLogs(page, filters)
+  Call GET /api/admin/ai/logs
+  Query params: ?page=&limit=20&risk=&action=&period=&search=
+  Expected:
+  {
+    total: Number,
+    page: Number,
+    pages: Number,
+    logs: [
+      {
+        id, timestamp, user_name, user_risk,
+        food_name, food_category, reason,
+        confidence, user_action, match_score
+      }
+    ]
+  }
+  Render table rows
+  Render pagination controls
+
+loadTrainingHistory()
+  Call GET /api/admin/ai/training-history
+  Expected: { history: [{ id, triggered_by, date, duration,
+    acc_before, acc_after, status, notes }] }
+  Render history table
+
+openRetrainModal()
+  Opens confirmation modal
+
+confirmRetrain()
+  Call POST /api/admin/ai/retrain
+  On success: start polling
+
+startPolling()
+  let pollingInterval = setInterval(pollStatus, 10000)
+  Store interval ID
+
+pollStatus()
+  Call GET /api/admin/ai/status
+  If status === 'active': stopPolling(), refreshMetrics()
+
+stopPolling()
+  clearInterval(pollingInterval)
+  pollingInterval = null
+
+filterLogs()
+  Reads all filter inputs
+  Calls loadRecommendationLogs(1, filters) — resets to page 1
+
+goToPage(pageNum)
+  Calls loadRecommendationLogs(pageNum, currentFilters)
+
+animateProgressBar(element, targetPercent)
+  CSS width transition from 0 to targetPercent
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await Promise.all([
+    loadAiStatus(),
+    loadFeatureImportanceChart(),
+    loadAccuracyTrendChart(),
+    loadRecommendationLogs(1, {}),
+    loadTrainingHistory()
+  ])
+  Attach retrain button listener
+  Attach modal cancel + confirm listeners
+  Attach all filter listeners → filterLogs
+
+STATE:
+  let pollingInterval = null
+  let currentFilters = {}
+  let currentPage = 1
+  let featureChart = null
+  let accuracyChart = null
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Reports & Export Page 8
+
+```
+Build an Admin Reports & Export HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Reports"
+Page title: "Reports & Export"
+
+═══════════════════════════════════════
+MAIN CONTENT — 3 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — REPORT TYPE CARDS (3 cards in a row):
+
+Each card is a large clickable report launcher.
+
+Card 1: Sales Report
+  Icon: 📈
+  Title: "Sales Report"
+  Description: "Revenue, orders, top items,
+    category breakdown by date range"
+  Tags: ["CSV", "PDF"]
+  "Configure & Export" button
+
+Card 2: Health & User Report
+  Icon: 🏥
+  Title: "Health Trends Report"
+  Description: "User risk distribution, disease trends,
+    dietary patterns, AI recommendation impact"
+  Tags: ["CSV", "PDF"]
+  "Configure & Export" button
+
+Card 3: Inventory Report
+  Icon: 📦
+  Title: "Inventory Report"
+  Description: "Stock levels, reorder alerts,
+    consumption rate per item"
+  Tags: ["CSV"]
+  "Configure & Export" button
+
+Clicking any card's button:
+  Expands a configuration panel below that card
+  Collapses panels of other cards
+  Smooth accordion expand (max-height transition)
+
+SECTION 2 — CONFIGURATION PANELS:
+
+Each card has its own config panel that expands below it.
+
+SALES REPORT CONFIG PANEL:
+  Date range: From / To date inputs
+  Preset buttons: Today | 7D | 30D | 90D | Custom
+  Group by: Daily | Weekly | Monthly (radio buttons)
+  Include sections checkboxes:
+    ☑ Revenue breakdown
+    ☑ Top selling items (select top N: 5/10/20)
+    ☑ Category comparison
+    ☑ Order status summary
+    ☑ Peak hours analysis
+  Format: CSV | PDF (toggle switch)
+  Preview button: "Preview Report"
+  Export button: "Download Report"
+
+HEALTH REPORT CONFIG PANEL:
+  Date range: From / To date inputs
+  Preset buttons
+  Include sections checkboxes:
+    ☑ Risk level distribution
+    ☑ Disease condition breakdown
+    ☑ AI recommendation stats
+    ☑ Dietary preference trends
+    ☑ High-risk user list
+      (sub-option: anonymize user data toggle)
+  Format: CSV | PDF
+  Preview button + Export button
+
+INVENTORY REPORT CONFIG PANEL:
+  Snapshot date: single date input (default: today)
+  Include sections checkboxes:
+    ☑ Current stock levels
+    ☑ Items below reorder threshold
+    ☑ Out of stock items
+    ☑ Stock change history (date range for this)
+      Date range shown/hidden based on this checkbox
+  Category filter: All | specific categories (multi-select)
+  Format: CSV only
+  Preview button + Export button
+
+SECTION 3 — PREVIEW PANEL:
+
+Full-width section below configuration cards.
+Hidden by default. Shown when "Preview Report" is clicked.
+
+Header:
+  Title: "Report Preview — [Report Type]"
+  Subtitle: "Showing first 10 rows. Full report exports [X] rows."
+  "Download Full Report" button (primary)
+  "Close Preview" link
+
+Preview table:
+  Renders first 10 rows of the report data
+  Columns match the selected report type
+  Formatted properly (₹ for money, dates formatted)
+  Scroll horizontally if many columns
+
+Below table:
+  Report summary stats:
+    "Total rows: [N]"
+    "Date range: [from] to [to]"
+    "Generated at: [timestamp]"
+  Export format options again (CSV / PDF)
+  Large "Export Full Report" button
+
+═══════════════════════════════════════
+EXPORT BEHAVIOR:
+═══════════════════════════════════════
+
+CSV Export:
+  Call GET /api/admin/export/[type] with config params
+  Response: blob with Content-Type: text/csv
+  Trigger browser download:
+    Create anchor element with blob URL
+    Set download filename: "[type]-report-[date].csv"
+    Click and revoke URL
+
+PDF Export:
+  Call GET /api/admin/export/[type]?format=pdf with params
+  Response: blob with Content-Type: application/pdf
+  Same download trigger with .pdf extension
+
+During export:
+  Button shows spinner + "Preparing export..."
+  Button disabled to prevent double-click
+  On complete: "✓ Downloaded" for 3 seconds then reset
+  On error: error toast + reset button
+
+═══════════════════════════════════════
+RECENT EXPORTS LOG:
+═══════════════════════════════════════
+
+Below preview section:
+  Title: "Recent Exports"
+  Small table showing last 10 exports from this session:
+    Type | Format | Date Range | Generated At | Download Again
+  "Download Again" re-triggers the same export call
+  Stored in sessionStorage (cleared on tab close)
+  Empty state: "No exports yet this session"
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+toggleConfigPanel(reportType)
+  Collapses all panels
+  Expands the selected one (max-height accordion)
+  Stores: let activeReport = reportType
+
+setPresetRange(preset, panelId)
+  Sets date inputs for the specific panel
+  Each panel has its own date state
+
+getReportConfig(reportType)
+  Reads all inputs from that report's config panel
+  Returns config object with all selected options
+
+previewReport(reportType)
+  Reads config via getReportConfig()
+  Call GET /api/admin/export/{reportType}/preview + params
+  Expected:
+  {
+    total_rows: Number,
+    columns: [String],
+    rows: [[...], ...],  ← first 10 rows as arrays
+    summary: {
+      date_range: String,
+      generated_at: String
+    }
+  }
+  Shows preview panel
+  Renders preview table dynamically from columns + rows
+  Shows summary stats
+
+exportReport(reportType, format)
+  Reads config via getReportConfig()
+  Call GET /api/admin/export/{reportType} + params + &format=
+  Handles blob response
+  Triggers download via createObjectURL
+  Sets button loading state
+  Logs to recent exports
+
+triggerDownload(blob, filename)
+  Creates temporary <a> element
+  Sets href to URL.createObjectURL(blob)
+  Sets download attribute to filename
+  Programmatically clicks it
+  Calls URL.revokeObjectURL after 100ms
+
+logExport(reportType, format, config)
+  Reads existing log from sessionStorage
+  Appends new entry
+  Saves back to sessionStorage
+  Re-renders recent exports table
+
+renderRecentExports()
+  Reads from sessionStorage
+  Renders last 10 entries in table
+  Attaches "Download Again" listeners
+
+downloadAgain(exportEntry)
+  Re-calls exportReport() with stored config
+
+validateConfig(reportType)
+  Checks required fields (date range etc.)
+  Returns { valid: Boolean, errors: [] }
+  Highlights invalid inputs if errors found
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  renderRecentExports()
+  Attach card button listeners → toggleConfigPanel
+  Attach all preview buttons → previewReport
+  Attach all export buttons → exportReport
+  Attach preset range buttons per panel
+  Attach checkbox logic (show/hide sub-options)
+
+STATE:
+  let activeReport = null
+  let previewData = null
+  let exportInProgress = false
+```
+
+---
+---
+
+## 🔷 MASTER PROMPT — Audit Logs Page 9
+
+```
+Build an Admin Audit Logs HTML page for an
+AI-Enabled Smart Canteen System.
+
+Apply the existing design system from the provided
+design file. No new colors, fonts, or CSS tokens.
+
+LAYOUT:
+Same sidebar + topbar structure as all other admin pages.
+Active nav item: "Audit Logs"
+Page title: "Audit Logs"
+
+Read-only page. No write operations. No modals with forms.
+Every action on this page is view-only.
+
+═══════════════════════════════════════
+MAIN CONTENT — 4 SECTIONS:
+═══════════════════════════════════════
+
+SECTION 1 — SUMMARY STRIP (4 stat cards):
+
+Card 1: Total Actions (all time)
+Card 2: Actions Today
+Card 3: Unique Admins Active Today
+Card 4: Last Action (relative time — "2 minutes ago")
+  Last Action card auto-refreshes every 30 seconds
+
+All shimmer skeleton before data loads.
+
+SECTION 2 — FILTER BAR:
+
+Row 1 (main filters):
+  Search: full-text search across action, admin name,
+    target table, payload text
+  Admin filter dropdown:
+    All Admins | list of admin names from API
+  Action Type filter dropdown:
+    All | CREATE | UPDATE | DELETE | LOGIN | LOGOUT |
+    EXPORT | RETRAIN | STATUS_CHANGE
+  Target Table filter dropdown:
+    All | foods | inventory | orders | users | ai_model |
+    reports | auth
+
+Row 2 (secondary filters):
+  Date From input
+  Date To input
+  IP Address input (partial match filter)
+  Clear All Filters link → resets everything
+
+All filters work together (AND logic).
+Filters marked as SERVER-SIDE:
+  search, admin, action_type, target_table, date_from,
+  date_to, ip_address
+Each filter change triggers a new API call (debounced 400ms).
+Do not filter client-side — always fetch from server.
+
+Active filter pills:
+  Below filter bar: show each active filter as a removable pill
+  "admin: John Doe ✕"  "action: DELETE ✕"
+  Clicking ✕ on pill removes that filter + re-fetches
+
+SECTION 3 — AUDIT LOGS TABLE:
+
+Columns:
+  Timestamp | Admin | Action Type | Target | Summary |
+  IP Address | Details ▼
+
+Timestamp column:
+  Full formatted date + time: "21 Feb 2025, 14:32:07"
+  Below: relative time in muted text
+
+Admin column:
+  Avatar initials circle + name + role badge below name
+
+Action Type column:
+  Colored badge per action:
+    CREATE        → green
+    UPDATE        → cyan
+    DELETE        → red
+    LOGIN         → purple
+    LOGOUT        → muted
+    EXPORT        → blue
+    RETRAIN       → amber
+    STATUS_CHANGE → orange
+
+Target column:
+  Table/entity name as a monospace pill
+  e.g. "foods" "orders" "users" "ai_model"
+
+Summary column:
+  Human-readable one-line summary of the action
+  e.g. "Updated food item 'Chicken Rice' (id: 42)"
+       "Deleted user account: john@example.com"
+       "Changed order #ORD-00123 status to Completed"
+       "Exported Sales Report (30 days, CSV)"
+  Generated from action_type + target + payload on backend
+
+IP Address column:
+  Monospace font
+  Clicking IP: filters table to only that IP address
+    (adds IP pill to active filters)
+
+Details ▼ column:
+  Expand button (chevron)
+  Clicking expands payload row below
+
+EXPANDABLE PAYLOAD ROW:
+
+Full-width row below each log entry.
+Shows raw payload data as a formatted JSON viewer.
+
+JSON viewer requirements:
+  Syntax highlighted:
+    Keys      → cyan color
+    Strings   → green color
+    Numbers   → amber color
+    Booleans  → purple color
+    Null      → red/muted color
+  Indented with 2 spaces
+  Line numbers on left side (muted)
+  Copyable: "Copy JSON" button top-right of viewer
+    On click: copies full JSON string, micro-toast "Copied!"
+  Max height: 320px with vertical scroll if longer
+  Background: slightly darker than table row
+
+If payload is null or empty:
+  Show "No payload data recorded for this action."
+
+Below JSON viewer (if applicable):
+  "Before" state vs "After" state diff view (for UPDATE actions):
+    Side-by-side two panels: "Before" | "After"
+    Changed fields highlighted with amber background
+    Only shown for action_type === 'UPDATE'
+    Added fields: green highlight
+    Removed fields: red strikethrough
+
+SECTION 4 — PAGINATION:
+
+Results info: "Showing 1–20 of 1,247 results"
+Pagination controls:
+  First | Prev | [page numbers] | Next | Last
+  Show max 5 page numbers centered around current page
+  Jump to page: text input + "Go" button
+  Per-page selector: 20 | 50 | 100 rows per page
+    Changing per-page resets to page 1 and re-fetches
+
+Auto-refresh toggle:
+  Toggle switch labeled "Auto-refresh (30s)"
+  Default: OFF
+  When ON: re-fetches first page every 30 seconds
+    Shows "Last refreshed: X seconds ago" text
+    Useful for monitoring live admin activity
+
+═══════════════════════════════════════
+JAVASCRIPT FUNCTIONS:
+═══════════════════════════════════════
+
+authGuard()
+apiFetch(endpoint, options)
+showToast(message, type, duration)
+startClock()
+loadAdminIdentity()
+
+loadSummary()
+  Call GET /api/admin/audit/summary
+  Expected:
+  {
+    total_actions: Number,
+    today_actions: Number,
+    active_admins_today: Number,
+    last_action_at: String
+  }
+  Populate summary cards
+
+loadAdminList()
+  Call GET /api/admin/audit/admins
+  Expected: { admins: [{ id, name }] }
+  Populate admin filter dropdown options
+
+loadLogs(page, perPage, filters)
+  Call GET /api/admin/audit
+  Query params:
+    ?page=&limit=&search=&admin_id=&action_type=
+    &target_table=&ip=&from=&to=
+  Expected:
+  {
+    total: Number,
+    page: Number,
+    pages: Number,
+    per_page: Number,
+    logs: [
+      {
+        id: String,
+        timestamp: String,
+        admin_id: String,
+        admin_name: String,
+        admin_role: String,
+        action_type: String,
+        target_table: String,
+        target_id: String,
+        summary: String,
+        ip_address: String,
+        user_agent: String,
+        payload: Object | null,
+        payload_before: Object | null,
+        payload_after: Object | null
+      }
+    ]
+  }
+  Stores in: let logsData = []
+  Renders table
+  Renders pagination
+
+renderTable(logs)
+  Clears tbody
+  Renders each row via buildLogRow(log)
+  Attaches expand toggle listeners
+
+buildLogRow(log)
+  Returns <tr> for log entry
+  Plus adjacent hidden <tr> for expandable payload
+
+toggleExpandRow(logId)
+  Shows/hides payload row with animation
+  Collapses all others first
+  On first expand: calls renderPayloadViewer(log)
+  On subsequent: just toggle visibility (already rendered)
+
+renderPayloadViewer(log)
+  Formats payload JSON with syntax highlighting
+  Uses a syntaxHighlight(json) helper function
+  Adds line numbers
+  Adds Copy JSON button
+  If action_type === 'UPDATE' and payload_before and
+    payload_after both exist:
+    Renders diff view below JSON viewer
+    Calls renderDiffView(before, after)
+
+syntaxHighlight(json)
+  Accepts object or string
+  Returns HTML string with <span> tags for each type:
+    keys      → class "json-key"     → cyan
+    strings   → class "json-string"  → green
+    numbers   → class "json-number"  → amber
+    booleans  → class "json-bool"    → purple
+    null      → class "json-null"    → muted red
+  Add line numbers as a separate column via CSS
+    (use CSS counter or pre-processing)
+
+renderDiffView(before, after)
+  Compare two objects key by key
+  Changed keys: amber background on both sides
+  Added keys (only in after): green background on after side
+  Removed keys (only in before): red background on before side
+  Returns two-panel HTML string
+
+copyPayload(logId)
+  Finds stored log by id
+  Copies JSON.stringify(log.payload, null, 2)
+  Shows micro-toast "JSON Copied!"
+
+filterByIp(ipAddress)
+  Sets IP filter input value to ipAddress
+  Adds IP to active filter pills
+  Triggers debouncedFetch()
+
+renderFilterPills()
+  Reads current filters object
+  Renders removable pill for each active filter
+  Attaches ✕ listener to each: removes filter + re-fetches
+
+removeFilter(filterKey)
+  Clears that filter from currentFilters object
+  Re-renders pills
+  Triggers debouncedFetch()
+
+debouncedFetch()
+  Debounce wrapper (400ms) around loadLogs()
+  Resets to page 1 on new filter
+  Cancels pending fetch if new one triggered
+
+goToPage(pageNum)
+  Validates page number range
+  Calls loadLogs(pageNum, currentPerPage, currentFilters)
+
+changePerPage(perPage)
+  Stores new per-page
+  Resets to page 1
+  Calls loadLogs(1, perPage, currentFilters)
+
+renderPagination(total, page, pages, perPage)
+  "Showing X–Y of Z results" text
+  Page buttons: First, Prev, up to 5 numbered,
+    Next, Last
+  Current page highlighted
+  Disabled states: First/Prev disabled on page 1,
+    Next/Last disabled on last page
+
+startAutoRefresh()
+  setInterval(() => loadLogs(1, ...) , 30000)
+  Updates "Last refreshed: Xs ago" counter every second
+
+stopAutoRefresh()
+  clearInterval on auto-refresh interval
+
+startLastActionRefresh()
+  Separate setInterval (30s) for summary Card 4 only
+  Calls loadSummary() to update last action time
+
+clearAllFilters()
+  Resets currentFilters = {}
+  Resets all input values
+  Clears filter pills
+  Calls loadLogs(1, currentPerPage, {})
+
+init()
+  authGuard()
+  startClock()
+  loadAdminIdentity()
+  await Promise.all([
+    loadSummary(),
+    loadAdminList(),
+    loadLogs(1, 20, {})
+  ])
+  startLastActionRefresh()
+  Attach all filter input listeners → debouncedFetch
+  Attach clear all filters link
+  Attach per-page selector listener
+  Attach auto-refresh toggle listener
+  Attach pagination listeners
+
+STATE:
+  let logsData = []
+  let currentPage = 1
+  let currentPerPage = 20
+  let currentFilters = {}
+  let expandedLogId = null
+  let autoRefreshInterval = null
+  let lastActionInterval = null
+  let debounceTimer = null
+
+RULES:
+- Completely read-only — no write API calls at all
+- All filtering is SERVER-SIDE — every filter change = new API call
+- Debounce all filter inputs at 400ms
+- JSON viewer must be syntax highlighted (no library —
+  build syntaxHighlight() from scratch with regex)
+- Diff view only for UPDATE actions
+- Expand one row at a time
+- Auto-refresh must not disrupt currently expanded row
+  (re-render table but preserve expanded state)
+- IP click filter must work without reloading page
+- One function = one responsibility
+- All API endpoint URLs in comments above each call
+``

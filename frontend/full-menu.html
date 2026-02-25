@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HealthBite - Full Canteen Menu with AI Insights">
+    <title>HealthBite | Full Menu</title>
+    <!-- Icons and Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="chatbot.css">
+    <script src="chatbot.js" defer></script>
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --brand-secondary: #4f46e5;
+            --brand-accent: #f59e0b;
+            --sidebar-bg: #f8fafc;
+            --sidebar-text: #64748b;
+            --sidebar-active-text: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-white: rgba(255, 255, 255, 0.85);
+            --transition-master: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            --safe-green: #10b981;
+            --warning-amber: #f59e0b;
+            --danger-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #ffffff;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: var(--brand-primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            margin-bottom: 20px;
+            z-index: 2000;
+        }
+
+        /* Ambient Mesh Background */
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 96%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(270, 100%, 97%, 1) 0, transparent 50%);
+        }
+
+        /* --- SIDEBAR --- */
+        aside.sidebar {
+            width: 280px;
+            height: 100vh;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 20px;
+            z-index: 1000;
+            flex-shrink: 0;
+            transition: var(--transition-master);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-left: 10px;
+        }
+
+        .sidebar-brand .logo-box {
+            width: 40px;
+            height: 40px;
+            background: var(--brand-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .sidebar-brand h1 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #0f172a;
+        }
+
+        .sidebar-brand span {
+            color: var(--brand-primary);
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 14px 18px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 16px;
+            transition: var(--transition-master);
+        }
+
+        .nav-link i {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background: rgba(59, 130, 246, 0.05);
+            color: var(--brand-primary);
+        }
+
+        .nav-link.active {
+            background: white;
+            color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+        }
+
+        .nav-link .badge {
+            margin-left: auto;
+            background: var(--brand-primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 25px;
+        }
+
+        .nav-link.sign-out {
+            color: #ef4444;
+            margin-bottom: 25px;
+        }
+
+        .nav-link.sign-out:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        /* Sidebar Close Button */
+        .sidebar-close {
+            display: none;
+            background: #f1f5f9;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            color: #64748b;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+
+        .sidebar-close:hover {
+            background: #ffe4e6;
+            color: #e11d48;
+        }
+
+        .sidebar-profile {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            margin-top: 10px;
+        }
+
+        .sidebar-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-avatar {
+            width: 44px;
+            height: 44px;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 15px;
+        }
+
+        /* --- MAIN CONTENT --- */
+        main.main-content {
+            flex-grow: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 40px 50px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            transition: var(--transition-master);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title-area h2 {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            color: #0f172a;
+        }
+
+        .title-area h2 span {
+            color: var(--brand-primary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ai-assist-btn {
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 10px 20px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.1);
+            transition: 0.3s;
+        }
+
+        .ai-assist-btn:hover {
+            background: #dbeafe;
+            transform: translateY(-2px);
+        }
+
+        .search-bar {
+            background: var(--glass-white);
+            border: 1px solid #e2e8f0;
+            padding: 12px 25px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-grow: 1;
+            max-width: 500px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transition: 0.3s;
+        }
+
+        .search-bar:focus-within {
+            background: white;
+            border-color: var(--brand-primary);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.1);
+        }
+
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .search-bar i {
+            color: #94a3b8;
+        }
+
+        /* --- TABS --- */
+        .menu-tabs {
+            display: flex;
+            gap: 30px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            font-size: 14px;
+            font-weight: 700;
+            color: #94a3b8;
+            cursor: pointer;
+            position: relative;
+            transition: 0.3s;
+        }
+
+        .tab.active {
+            color: var(--brand-primary);
+        }
+
+        .tab.active::after {
+            content: "";
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--brand-primary);
+            border-radius: 10px;
+        }
+
+        /* --- FILTERS --- */
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .filter-options {
+            display: flex;
+            gap: 12px;
+        }
+
+        .filter-pill {
+            padding: 8px 18px;
+            border-radius: 100px;
+            border: 1px solid #e2e8f0;
+            background: var(--glass-white);
+            color: #64748b;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-pill.all.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .filter-pill.safe {
+            color: #059669;
+        }
+
+        .filter-pill.safe.active {
+            background: #d1fae5;
+            border-color: #a7f3d0;
+        }
+
+        .filter-pill.moderate {
+            color: #d97706;
+        }
+
+        .filter-pill.moderate.active {
+            background: #fef3c7;
+            border-color: #fde68a;
+        }
+
+        .filter-pill.risk {
+            color: #dc2626;
+        }
+
+        .filter-pill.risk.active {
+            background: #fee2e2;
+            border-color: #fecaca;
+        }
+
+        /* --- GRID LAYOUT --- */
+        .content-grid {
+            margin-bottom: 50px;
+        }
+
+        .health-guide-section {
+            background: var(--glass-white);
+            border-radius: 35px;
+            padding: 35px;
+            border: 1px solid #e2e8f0;
+            margin-top: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+        }
+
+        .health-guide-section h3 {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 25px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .guide-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        .guide-item {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .guide-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .guide-desc {
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .menu-grid {
+            display: flex;
+            gap: 25px;
+            overflow-x: auto;
+            padding: 10px 5px 30px;
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: thin;
+            /* Firefox */
+        }
+
+        .menu-grid::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .menu-grid::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+        }
+
+        .menu-grid::-webkit-scrollbar-thumb {
+            background: var(--brand-primary);
+            border-radius: 10px;
+            opacity: 0.5;
+        }
+
+        .food-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(25px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition-master);
+            overflow: hidden;
+            position: relative;
+            flex: 0 0 350px;
+            /* Fixed width for horizontal scroll */
+        }
+
+        .food-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .image-container {
+            height: 200px;
+            border-radius: 28px;
+            background: #f8fafc;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+
+        .safety-tag {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-weight: 800;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .safety-tag.safe {
+            background: #10b981;
+            color: white;
+        }
+
+        .safety-tag.caution {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .safety-tag.risk {
+            background: #ef4444;
+            color: white;
+        }
+
+        .food-card.safe {
+            border: 2px solid #10b981;
+        }
+
+        .food-card.caution {
+            border: 2px solid #f59e0b;
+        }
+
+        .food-card.risk {
+            border: 2px solid #ef4444;
+        }
+
+        .progress-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            justify-content: space-between;
+        }
+
+        .match-text {
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .match-text.perfect {
+            background: #10b981;
+        }
+
+        .match-text.good {
+            background: #f59e0b;
+        }
+
+        .match-text.low {
+            background: #ef4444;
+        }
+
+        .match-score {
+            color: white;
+            font-size: 13px;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-bar-bg {
+            position: absolute;
+            bottom: 12px;
+            left: 15px;
+            right: 15px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            background: var(--safe-green);
+            border-radius: 10px;
+        }
+
+        .food-info {
+            padding: 0 5px;
+        }
+
+        .name-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .food-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            max-width: 70%;
+        }
+
+        .food-price {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--brand-primary);
+        }
+
+        .macro-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .macro-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .macro-item i {
+            color: #3b82f6;
+        }
+
+        .ai-analysis-box {
+            background: #eef2ff;
+            border-radius: 15px;
+            padding: 12px;
+            border-left: 4px solid var(--brand-secondary);
+        }
+
+        .ai-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--brand-secondary);
+            margin-bottom: 5px;
+        }
+
+        .ai-text {
+            font-size: 12px;
+            line-height: 1.4;
+            color: #4338ca;
+            font-weight: 500;
+        }
+
+        /* Removed sidebar-specific styles */
+
+        /* Removed old guide-card styles */
+
+        /* --- TRAY BAR --- */
+        .tray-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 330px;
+            /* Aligned with grid */
+            background: #0f172a;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            transform: translateY(150px);
+            transition: 0.6s var(--transition-master);
+        }
+
+        .tray-bar.active {
+            transform: translateY(0);
+        }
+
+        /* --- RESPONSIVE ADJUSTMENTS --- */
+        @media (max-width: 1200px) {
+            .guide-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar-close {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                height: 100vh;
+            }
+
+            .sidebar.mobile-active {
+                left: 0;
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2);
+            }
+
+            main.main-content {
+                width: 100%;
+                padding: 40px 20px 100px;
+            }
+
+            .header-section {
+                margin-bottom: 20px;
+            }
+
+            .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+                margin-bottom: 30px;
+            }
+
+            .ai-assist-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 14px;
+            }
+
+            .search-bar {
+                width: 100%;
+                max-width: 100%;
+                padding: 14px 20px;
+            }
+
+            .tab-pills {
+                overflow-x: auto;
+                padding-bottom: 10px;
+                width: 100%;
+                flex-wrap: nowrap;
+            }
+
+            .tab {
+                flex-shrink: 0;
+            }
+
+            .food-card {
+                flex: 0 0 calc(100vw - 40px);
+                max-width: 350px;
+            }
+
+            .tray-bar {
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
+                border-radius: 20px;
+                padding: 15px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-row h2 {
+                font-size: 28px;
+            }
+
+            .filter-row {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+
+            .filter-pill {
+                flex-shrink: 0;
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg"></div>
+
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <button class="sidebar-close" id="sidebar-close-btn">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="sidebar-brand">
+            <div class="logo-box">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <h1>Health<span>Bite</span></h1>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="user.html" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="#" class="nav-link active"><i class="fas fa-th-large"></i> Full Menu</a>
+            <a href="health-analytics.html" class="nav-link"><i class="fas fa-chart-line"></i> Analytics</a>
+            <a href="orders.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Orders</a>
+            <a href="#" class="nav-link"><i class="fas fa-shopping-cart"></i> Cart <span class="badge"
+                    id="cart-badge">0</span></a>
+            <a href="health.html" class="nav-link"><i class="fas fa-user-circle"></i> Health Profile</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="#" onclick="logout()" class="nav-link sign-out"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+
+            <div class="sidebar-profile">
+                <div class="sidebar-profile-header">
+                    <div class="sidebar-avatar" id="side-avatar">U</div>
+                    <div>
+                        <div style="font-size: 14px; font-weight: 800;" id="side-name">User</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #3b82f6;" id="side-condition">Healthy
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="header-section">
+            <div class="title-area">
+                <button class="mobile-menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2>Full Canteen <span>Menu</span></h2>
+            </div>
+        </div>
+
+        <div class="menu-tabs">
+            <div class="tab active" data-filter="all">All Items</div>
+            <div class="tab" data-filter="lunch">Lunch</div>
+            <div class="tab" data-filter="breakfast">Breakfast</div>
+            <div class="tab" data-filter="dinner">Dinner</div>
+            <div class="tab" data-filter="snacks">Snacks</div>
+        </div>
+
+        <div class="filter-row">
+            <span class="filter-label">Health Filter:</span>
+            <div class="filter-options">
+                <button class="filter-pill all active" onclick="filterMenu('all')"><i class="fas fa-th"></i>
+                    All</button>
+                <button class="filter-pill safe" onclick="filterMenu(0)"><i class="fas fa-check"></i> Safe</button>
+                <button class="filter-pill moderate" onclick="filterMenu(1)"><i class="fas fa-exclamation"></i>
+                    Moderate</button>
+                <button class="filter-pill risk" onclick="filterMenu(2)"><i class="fas fa-times"></i> High Risk</button>
+            </div>
+        </div>
+
+        <!-- AI Assistant & Search Bar moved above food list -->
+        <div class="action-bar">
+            <a href="health-assistant.html" class="ai-assist-btn"><i class="fas fa-robot"></i> AI Assistant</a>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search your favorite food items...">
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="menu-grid" id="menu-container">
+                <!-- Items via JS -->
+            </div>
+        </div>
+
+        <!-- Health Safety Guide moved to bottom -->
+        <section class="health-guide-section">
+            <h3><i class="fas fa-shield-alt" style="color: var(--brand-primary);"></i> Health Safety Guide</h3>
+            <div class="guide-grid">
+                <div class="guide-item">
+                    <div class="guide-indicator" style="color: #059669;">
+                        <div class="dot" style="background: #10b981;"></div> Safe (Green)
+                    </div>
+                    <div class="guide-desc">
+                        Recommended. Meets your strict nutrient limits. High Match Score (>80%)
+                    </div>
+                </div>
+
+                <div class="guide-item">
+                    <div class="guide-indicator" style="color: #d97706;">
+                        <div class="dot" style="background: #f59e0b;"></div> Caution (Yellow)
+                    </div>
+                    <div class="guide-desc">
+                        Consume occasionally. Slightly higher in sugar/sodium. Moderate Risk.
+                    </div>
+                </div>
+
+                <div class="guide-item">
+                    <div class="guide-indicator" style="color: #dc2626;">
+                        <div class="dot" style="background: #ef4444;"></div> High Risk (Red)
+                    </div>
+                    <div class="guide-desc">
+                        Not recommended. Conflicts with profile condition (e.g. Diabetes). Requires Confirmation.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Tray Bar -->
+    <div class="tray-bar" id="cart-bar">
+        <div style="display: flex; gap: 25px;">
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 10px; text-transform: uppercase; opacity: 0.6;">Items</span>
+                <span style="font-size: 16px; font-weight: 800;" id="tray-count">0</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 10px; text-transform: uppercase; opacity: 0.6;">Total</span>
+                <span style="font-size: 16px; font-weight: 800;" id="tray-price">₹0</span>
+            </div>
+        </div>
+        <button onclick="checkout()"
+            style="padding: 12px 30px; background: #3b82f6; border: none; border-radius: 100px; color: white; font-weight: 800; cursor: pointer;">Process
+            Order</button>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let fullMenu = [];
+        let tray = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if (!token) { window.location.href = 'index.html'; return; }
+
+            const hasProfile = await checkProfileCompletion();
+            if (!hasProfile) {
+                window.location.href = 'health.html';
+                return;
+            }
+
+            init();
+
+            // Search functionality
+            document.querySelector('.search-bar input').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = fullMenu.filter(item =>
+                    item.name.toLowerCase().includes(term) ||
+                    item.description.toLowerCase().includes(term) ||
+                    item.tag.toLowerCase().includes(term)
+                );
+                renderMenu(filtered);
+            });
+
+            // Category tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const category = tab.getAttribute('data-filter');
+
+                    if (category === 'all') {
+                        renderMenu(fullMenu);
+                    } else {
+                        // For demo purposes, we'll filter by simulated categories or tags
+                        // In a real app, 'meal_type' would be in the data
+                        const filtered = fullMenu.filter(item => {
+                            if (category === 'lunch') return item.calories > 400 && item.tag !== 'Standard';
+                            if (category === 'breakfast') return item.calories < 400;
+                            if (category === 'dinner') return item.calories > 500;
+                            if (category === 'snacks') return item.price < 200;
+                            return true;
+                        });
+                        renderMenu(filtered);
+                    }
+                });
+            });
+        });
+
+        async function init() {
+            const token = localStorage.getItem('token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Profile info for sidebar
+            fetch(`${API_ROOT}/health/profile`, { headers })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('side-name').textContent = data.name || "User";
+                    document.getElementById('side-avatar').textContent = (data.name || "U").charAt(0).toUpperCase();
+                    document.getElementById('side-condition').textContent = data.disease && data.disease.length > 0 ? data.disease[0] : "Healthy";
+                });
+
+            // Menu data
+            fetch(`${API_ROOT}/menu/intelligent`, { headers })
+                .then(res => res.json())
+                .then(items => {
+                    fullMenu = items;
+                    renderMenu(items);
+                });
+        }
+
+        function renderMenu(items) {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = items.map(item => {
+                const riskClass = item.risk_level === 0 ? 'safe' : (item.risk_level === 1 ? 'caution' : 'risk');
+                const riskLabel = item.risk_level === 0 ? 'Safe' : (item.risk_level === 1 ? 'Caution' : 'High Risk');
+                const riskIcon = item.risk_level === 0 ? 'check' : (item.risk_level === 1 ? 'exclamation' : 'exclamation-triangle');
+
+                let matchLabel = 'Low Match';
+                let matchClass = 'low';
+                if (item.match_score > 85) {
+                    matchLabel = 'Perfect Match';
+                    matchClass = 'perfect';
+                } else if (item.match_score > 60) {
+                    matchLabel = 'Good Match';
+                    matchClass = 'good';
+                }
+
+                return `
+                <div class="food-card ${riskClass}">
+                    <div class="image-container">
+                        ${item.image}
+                        <div class="safety-tag ${riskClass}">
+                            <i class="fas fa-${riskIcon}"></i>
+                            ${riskLabel}
+                        </div>
+                        <div class="progress-overlay">
+                            <span class="match-text ${matchClass}">${matchLabel}</span>
+                            <span class="match-score">${Math.round(item.match_score)}%</span>
+                        </div>
+                        <div class="score-bar-bg">
+                            <div class="score-bar-fill" style="width: ${item.match_score}%; background: ${item.risk_level === 0 ? '#10b981' : (item.risk_level === 1 ? '#f59e0b' : '#ef4444')};"></div>
+                        </div>
+                    </div>
+                    <div class="food-info">
+                        <div class="name-price-row">
+                            <div class="food-name">${item.name}</div>
+                            <div class="food-price">₹${item.price}</div>
+                        </div>
+                        <div class="macro-row">
+                            <div class="macro-item"><i class="fas fa-fire"></i> ${item.calories} cal</div>
+                            <div class="macro-item"><i class="fas fa-dna"></i> ${item.protein}g</div>
+                            <div class="macro-item"><i class="fas fa-leaf"></i> ${item.tag}</div>
+                        </div>
+                        <div class="ai-analysis-box" style="background: ${item.risk_level === 0 ? '#f0fdf4' : (item.risk_level === 1 ? '#fffbeb' : '#fef2f2')}; border-left-color: ${item.risk_level === 0 ? '#10b981' : (item.risk_level === 1 ? '#f59e0b' : '#ef4444')};">
+                            <div class="ai-label" style="color: ${item.risk_level === 0 ? '#166534' : (item.risk_level === 1 ? '#92400e' : '#991b1b')};"><i class="fas fa-brain"></i> AI Health Analysis</div>
+                            <div class="ai-text" style="color: ${item.risk_level === 0 ? '#166534' : (item.risk_level === 1 ? '#92400e' : '#991b1b')};">${item.insight}</div>
+                        </div>
+                        <button class="btn-add-tray" style="background: ${item.risk_level === 0 ? '#10b981' : (item.risk_level === 1 ? '#f59e0b' : '#ef4444')};" onclick="addToTray(${item.id})">
+                             <i class="fas fa-plus"></i> Add to Tray
+                        </button>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function filterMenu(risk) {
+            // Update active state of pills
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            const btn = event.currentTarget;
+            btn.classList.add('active');
+
+            if (risk === 'all') {
+                renderMenu(fullMenu);
+            } else {
+                const filtered = fullMenu.filter(item => item.risk_level === risk);
+                renderMenu(filtered);
+            }
+        }
+
+        function addToTray(id) {
+            const item = fullMenu.find(x => x.id === id);
+            tray.push(item);
+            updateTray();
+        }
+
+        function updateTray() {
+            const bar = document.getElementById('cart-bar');
+            if (tray.length > 0) bar.classList.add('active');
+            else bar.classList.remove('active');
+
+            const total = tray.reduce((sum, item) => sum + item.price, 0);
+            document.getElementById('tray-count').textContent = tray.length;
+            document.getElementById('cart-badge').textContent = tray.length;
+            document.getElementById('tray-price').textContent = "₹" + total;
+        }
+
+        function checkout() {
+            const token = localStorage.getItem('token');
+            const totals = tray.reduce((acc, x) => {
+                acc.ids.push(x.id); acc.price += x.price; acc.cal += x.calories; acc.sugar += x.sugar; acc.sodium += x.sodium;
+                return acc;
+            }, { ids: [], price: 0, cal: 0, sugar: 0, sodium: 0 });
+
+            fetch(`${API_ROOT}/menu/order`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: totals.ids, total_price: totals.price, total_calories: totals.cal, total_sugar: totals.sugar, total_sodium: totals.sodium
+                })
+            }).then(res => {
+                if (res.ok) {
+                    tray = []; updateTray();
+                    alert("Order placed successfully!");
+                }
+            });
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        // Mobile Menu Logic
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebarClose = document.getElementById('sidebar-close-btn');
+        const sidebar = document.querySelector('.sidebar');
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.add('mobile-active');
+            });
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-active');
+            });
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 &&
+                !sidebar.contains(e.target) &&
+                !menuToggle.contains(e.target) &&
+                sidebar.classList.contains('mobile-active')) {
+                sidebar.classList.remove('mobile-active');
+            }
+        });
+    </script>
+</body>
+
+</html>

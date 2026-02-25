@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HealthBite - Smart Food Recommendations & Nutrition Alerts">
+    <title>HealthBite | Welcome Back</title>
+    <!-- Icons and Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --brand-secondary: #4f46e5;
+            --brand-accent: #f59e0b;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-white: rgba(255, 255, 255, 0.95);
+            --transition-master: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            background: #0f172a;
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ultimate Mesh Background with Subtle Noise */
+        .page-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 96%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(220, 100%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(270, 100%, 97%, 1) 0, transparent 50%);
+        }
+
+        .page-bg::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .auth-card {
+            display: flex;
+            width: 92%;
+            max-width: 1080px;
+            min-height: 700px;
+            background: var(--glass-white);
+            backdrop-filter: blur(25px);
+            border-radius: 48px;
+            box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: cardEntrance 1.2s var(--transition-master);
+        }
+
+        @keyframes cardEntrance {
+            from {
+                opacity: 0;
+                transform: scale(0.92) translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Visual Master Section */
+        .banner-visual {
+            flex: 1.1;
+            background: linear-gradient(160deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            padding: 80px 70px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .banner-visual::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('https://images.unsplash.com/photo-1547592166-23ac45744acd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.15;
+            mix-blend-mode: overlay;
+            z-index: 0;
+        }
+
+        .logo-wrap {
+            width: 68px;
+            height: 68px;
+            background: white;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--brand-primary);
+            font-size: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            margin-bottom: 50px;
+            animation: floatLogo 6s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes floatLogo {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0);
+            }
+
+            50% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+        }
+
+        .content-stack {
+            position: relative;
+            z-index: 10;
+        }
+
+        .content-stack h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 0.95;
+            margin: 0 0 15px;
+            letter-spacing: -3px;
+        }
+
+        .content-stack .tagline {
+            font-size: 26px;
+            font-weight: 600;
+            color: var(--brand-accent);
+            margin-bottom: 35px;
+            display: block;
+            letter-spacing: -0.5px;
+        }
+
+        .promo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 50px;
+        }
+
+        .promo-list li {
+            margin-bottom: 16px;
+            font-size: 17px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            opacity: 0.95;
+        }
+
+        .promo-list i {
+            color: var(--brand-accent);
+            font-size: 20px;
+        }
+
+        .feature-grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .feature-card {
+            padding: 18px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            transition: var(--transition-master);
+        }
+
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(12px) scale(1.02);
+        }
+
+        .feature-card i {
+            font-size: 24px;
+            color: var(--brand-accent);
+        }
+
+        .feature-card b {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .feature-card span {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        /* Interaction Panel */
+        .panel-interaction {
+            flex: 1;
+            padding: 80px 100px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .panel-content {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        .form-head {
+            margin-bottom: 45px;
+        }
+
+        .welcome-title {
+            font-size: 48px;
+            font-weight: 800;
+            margin: 0 0 8px;
+            letter-spacing: -2.5px;
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes slideLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .form-head p {
+            color: var(--text-muted);
+            font-size: 17px;
+            font-weight: 500;
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
+        /* Modern Mode Switcher */
+        .mode-switcher {
+            display: flex;
+            position: relative;
+            background: #f1f5f9;
+            padding: 8px;
+            border-radius: 24px;
+            margin-bottom: 40px;
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+        }
+
+        .mode-btn {
+            flex: 1;
+            z-index: 2;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .mode-btn.active {
+            color: var(--brand-primary);
+        }
+
+        .slider-blob {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: calc(50% - 8px);
+            height: calc(100% - 16px);
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+            transition: var(--transition-master);
+            z-index: 1;
+        }
+
+        .mode-switcher.alt .slider-blob {
+            transform: translateX(100%);
+        }
+
+        .input-box {
+            margin-bottom: 28px;
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+        }
+
+        .input-box:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .field-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .field-container i {
+            position: absolute;
+            left: 24px;
+            color: var(--text-muted);
+            font-size: 18px;
+            transition: 0.3s;
+            pointer-events: none;
+        }
+
+        .field-input {
+            width: 100%;
+            padding: 18px 24px 18px 64px;
+            background: #f8fafc;
+            border: 2.5px solid transparent;
+            border-radius: 22px;
+            font-family: inherit;
+            font-size: 16px;
+            transition: 0.3s;
+            color: var(--text-main);
+            box-sizing: border-box;
+            display: block;
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            background: white;
+            box-shadow: 0 15px 40px rgba(99, 102, 241, 0.1);
+        }
+
+        .field-input:focus+i {
+            color: var(--brand-primary);
+        }
+
+        .eye-toggle {
+            position: absolute;
+            right: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 18px;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            z-index: 5;
+        }
+
+        .eye-toggle:hover {
+            color: var(--brand-primary);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 20px;
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 22px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-master);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.25);
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+        }
+
+        .btn-submit:hover {
+            background: #4f46e5;
+            transform: translateY(-5px);
+            box-shadow: 0 20px 45px rgba(99, 102, 241, 0.35);
+        }
+
+        .auth-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 500;
+            animation: slideLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
+        }
+
+        .auth-footer a {
+            color: var(--brand-primary);
+            text-decoration: none;
+            font-weight: 800;
+            border-bottom: 2px solid transparent;
+            transition: 0.3s;
+        }
+
+        .auth-footer a:hover {
+            border-color: var(--brand-primary);
+        }
+
+        @media (max-width: 1000px) {
+            .banner-visual {
+                display: none;
+            }
+
+            .auth-card {
+                max-width: 500px;
+                border-radius: 40px;
+            }
+
+            .panel-interaction {
+                padding: 60px 45px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                overflow-y: auto;
+                height: auto;
+                min-height: 100vh;
+                padding: 20px 0;
+            }
+
+            .auth-card {
+                width: 90%;
+                min-height: auto;
+                margin: 0 auto;
+                flex-direction: column;
+                border-radius: 30px;
+            }
+
+            .panel-interaction {
+                padding: 40px 25px;
+            }
+
+            .welcome-title {
+                font-size: 36px;
+            }
+
+            .promo-list li {
+                font-size: 15px;
+            }
+
+            .feature-card {
+                padding: 15px;
+            }
+
+            .auth-card {
+                width: 95%;
+                margin: 20px auto;
+            }
+
+            .panel-interaction {
+                padding: 40px 25px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .welcome-title {
+                font-size: 28px;
+            }
+
+            .btn-submit {
+                font-size: 16px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-bg"></div>
+
+    <div class="auth-card">
+        <!-- Visual Section: Stylish & Aligned Content -->
+        <div class="banner-visual">
+            <div class="logo-wrap" style="animation: fadeUp 0.8s ease 0.2s both;">
+                <i class="fas fa-utensils"></i>
+            </div>
+
+            <div class="content-stack">
+                <h1 style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;">HealthBite</h1>
+                <span class="tagline" style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;">Eat Right.
+                    Stay Healthy.</span>
+
+                <ul class="promo-list" style="animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;">
+                    <li><i class="fas fa-check-circle"></i> Get food suggestions based on your health</li>
+                    <li><i class="fas fa-check-circle"></i> Avoid foods that harm your body</li>
+                    <li><i class="fas fa-check-circle"></i> Simple nutrition guidance, daily</li>
+                </ul>
+
+                <div class="feature-grid">
+                    <div class="feature-card" style="animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.8s both;">
+                        <i class="fas fa-leaf"></i>
+                        <div>
+                            <b>Smart Suggestions</b>
+                            <span>Personalized for your condition</span>
+                        </div>
+                    </div>
+                    <div class="feature-card" style="animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.0s both;">
+                        <i class="fas fa-shield-alt"></i>
+                        <div>
+                            <b>Safety First</b>
+                            <span>Allergy & restriction alerts</span>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- Close content-stack -->
+
+            <p
+                style="font-size: 13px; opacity: 0.7; font-weight: 600; margin-top: 60px; position: relative; z-index: 10; animation: fadeUp 1s ease 1.2s both;">
+                &copy; 2026 HealthBite Technologies • Simply Intelligent
+            </p>
+        </div>
+
+        <!-- Aligned Form Panel -->
+        <div class="panel-interaction">
+            <div class="panel-content">
+                <div class="form-head">
+                    <h2 class="welcome-title">Welcome</h2>
+                    <p>Enter your details to access your health portal.</p>
+                </div>
+
+                <div class="mode-switcher" id="roleSwitcher">
+                    <div class="slider-blob"></div>
+                    <button class="mode-btn active" onclick="setRole('USER', this)">
+                        <i class="fas fa-user"></i> User
+                    </button>
+                    <button class="mode-btn" onclick="setRole('ADMIN', this)">
+                        <i class="fas fa-user-shield"></i> Admin
+                    </button>
+                </div>
+
+                <form id="loginForm" onsubmit="event.preventDefault(); login();">
+                    <div id="form-error-login"
+                        style="display:none; color: #ef4444; background: #fee2e2; padding: 15px; border-radius: 20px; margin-bottom: 25px; font-size: 14px; font-weight: 700; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+                    </div>
+
+                    <div id="admin-key-group" style="display: none;" class="input-box">
+                        <span class="input-label">Admin Security Key</span>
+                        <div class="field-container">
+                            <i class="fas fa-key"></i>
+                            <input type="password" id="login-admin-key" class="field-input"
+                                placeholder="Enter Admin Password">
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <span class="input-label">Email Address</span>
+                        <div class="field-container">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="login-email" class="field-input"
+                                placeholder="youremail@healthbite.io" required>
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: baseline; height: 18px; margin-bottom: 12px;">
+                            <span class="input-label" style="margin-bottom: 0;">Password</span>
+                            <a href="forgot-password.html"
+                                style="font-size: 13px; color: var(--brand-primary); font-weight: 800; text-decoration: none;">Forgot
+                                Key?</a>
+                        </div>
+                        <div class="field-container">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="login-password" class="field-input" placeholder="••••••••"
+                                required>
+                            <span class="eye-toggle" onclick="togglePass('login-password', this)">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                        Access Dashboard <i class="fas fa-chevron-right"></i>
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    New to HealthBite? <a href="register.html">Create Profile</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/script.js"></script>
+    <script>
+        let currentRole = 'USER';
+
+        function setRole(role, el) {
+            currentRole = role;
+            const switcher = document.getElementById('roleSwitcher');
+            const tabs = switcher.querySelectorAll('.mode-btn');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            if (role === 'ADMIN') {
+                switcher.classList.add('alt');
+                if (document.getElementById('admin-key-group')) document.getElementById('admin-key-group').style.display = 'none';
+            } else {
+                switcher.classList.remove('alt');
+                if (document.getElementById('admin-key-group')) document.getElementById('admin-key-group').style.display = 'none';
+            }
+        }
+
+        function togglePass(id, btn) {
+            const field = document.getElementById(id);
+            const icon = btn.querySelector('i');
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                field.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    </script>
+</body>
+
+</html>

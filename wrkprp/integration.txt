@@ -1,0 +1,972 @@
+## 🔗 MASTER INTEGRATION CHECKLIST
+### All 9 Frontend Pages ↔ All Backend Endpoints
+
+---
+
+## 📋 HOW TO USE THIS CHECKLIST
+
+```
+For each page:
+  □ = Not started
+  ◑ = In progress
+  ✅ = Verified working
+
+Test each endpoint:
+  1. Without token      → must get 401
+  2. With wrong role    → must get 403
+  3. With correct token → must get 200/201/202
+  4. Frontend receives  → UI renders correctly
+```
+
+---
+
+## 🟦 PAGE 1 — Dashboard
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/overview
+  Called by:   loadOverview()
+  Populates:   4 KPI stat cards
+  Check:
+    □ revenue.value shows in Card 1
+    □ revenue.change badge green/red correctly
+    □ orders.value shows in Card 2
+    □ orders.pending shows below value
+    □ users.value shows in Card 3
+    □ users.newThisMonth shows below value
+    □ lowStock.value shows in Card 4
+    □ If lowStock.value > 0:
+        Card 4 border turns danger red
+        Topbar notification dot appears
+    □ Skeleton removed after data loads
+    □ Card 4 click navigates to inventory.html
+
+□ GET /api/admin/analytics/orders-by-hour-today
+  Called by:   loadHourlyChart()
+  Populates:   Left chart (Bar chart)
+  Check:
+    □ X-axis shows hours from 8AM to now only
+    □ Current hour bar is accent cyan color
+    □ Past hours are 30% opacity
+    □ Average reference line drawn
+    □ "Avg" label at right of line
+    □ Peak hour quick-stat correct below chart
+    □ Quiet hour quick-stat correct below chart
+    □ Auto-refreshes every 5 minutes silently
+        (no skeleton flash on refresh)
+
+□ GET /api/admin/analytics/sales?period=7d
+  Called by:   loadSalesChart()
+  Populates:   Right chart (Mixed Bar+Line)
+  Check:
+    □ Bar = Revenue, Line = Orders
+    □ Dual Y-axes present
+    □ 7D pill active by default
+    □ Clicking 30D re-fetches + re-renders
+    □ Clicking 90D re-fetches + re-renders
+    □ Only this chart changes on pill click
+        (KPI cards do NOT reload)
+    □ Old chart destroyed before new renders
+
+□ GET /api/admin/analytics/top-items
+  Called by:   loadTopItems()
+  Populates:   Bottom-left table
+  Check:
+    □ Exactly 5 rows shown
+    □ Rank 1 = gold badge
+    □ Rank 2 = silver badge
+    □ Rank 3 = bronze badge
+    □ Mini progress bar width = share %
+    □ "View All →" links to food-management.html
+
+□ GET /api/admin/alerts
+  Called by:   loadAlerts()
+  Populates:   Bottom-right alerts panel
+  Check:
+    □ Alert items render with correct dot color
+    □ warn  → amber dot with glow
+    □ error → red dot with glow
+    □ info  → cyan dot with glow
+    □ Empty state shows "No alerts right now ✓"
+    □ Max 10 alerts shown
+
+INTEGRATION RULES FOR PAGE 1:
+  □ All 5 loads called in parallel via Promise.all
+  □ loadOverview() awaited first before charts
+  □ hourlyRefreshInterval cleared on beforeunload
+  □ JWT decoded for admin name in sidebar
+  □ Logout clears admin_token + redirects
+```
+
+---
+
+## 🟦 PAGE 2 — Food Management
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/foods
+  Called by:   loadFoods()
+  Populates:   Food table
+  Check:
+    □ All food items render in table
+    □ Image shows if image_url present
+    □ Placeholder emoji if no image
+    □ Category badge correct color per category
+    □ Stock number color:
+        0       → danger red
+        1-9     → warning amber
+        10+     → success green
+    □ Status badge correct per available field
+    □ Availability toggle reflects available state
+    □ Skeleton rows removed after load
+    □ "Showing X of Y items" count correct
+
+□ POST /api/admin/foods
+  Called by:   submitFood() in add mode
+  Triggered:   "Add Food" button → modal → Save
+  Check:
+    □ Form validation fires on submit not on blur
+    □ Required fields highlighted red if missing
+    □ Error message appears below invalid field
+    □ Scroll to first invalid field on fail
+    □ Button shows spinner + disabled during call
+    □ On 201: modal closes
+    □ On 201: new row prepended to table
+    □ On 201: success toast appears
+    □ On 201: "Showing X of Y" count increments
+    □ On 409 conflict: error toast shows
+    □ Modal stays open on any error
+    □ Image URL preview updates as user types
+
+□ PUT /api/admin/foods/:id
+  Called by:   submitFood() in edit mode
+  Triggered:   Edit icon → modal pre-filled → Save
+  Check:
+    □ All fields pre-filled with existing data
+    □ Modal title changes to "Edit Food Item"
+    □ Button text changes to "Update Food"
+    □ Only changed fields sent to API
+        (partial update)
+    □ On 200: modal closes
+    □ On 200: that specific row updated in-place
+        (no full table reload)
+    □ On 200: success toast appears
+
+□ DELETE /api/admin/foods/:id
+  Called by:   confirmDelete()
+  Triggered:   Delete icon → confirmation modal
+  Check:
+    □ Food name appears in modal warning text
+    □ "removes from AI recommendation engine"
+        message visible
+    □ Cancel button closes modal, no action
+    □ Confirm button shows spinner during call
+    □ On 200: modal closes
+    □ On 200: row fades out (opacity 0, height 0)
+    □ On 200: row removed from DOM after animation
+    □ On 200: success toast appears
+    □ On 422 (active orders): error toast
+        "Cannot delete — pending orders exist"
+
+□ PUT /api/admin/foods/:id/availability
+  Called by:   toggleAvailability()
+  Triggered:   Toggle switch click in table row
+  Check:
+    □ Spinner shows inside toggle during call
+    □ Toggle non-clickable during call
+    □ On 200: toggle state updates in-place
+    □ On 200: status badge updates in-place
+    □ On error: toggle reverts to previous state
+    □ On error: error toast appears
+
+INTEGRATION RULES FOR PAGE 2:
+  □ foodsData[] array is master state
+  □ All operations update array first then DOM
+  □ No full table reload except initial load
+  □ editingId = null means add mode
+  □ editingId = uuid means edit mode
+  □ Escape key closes any open modal
+  □ Overlay click closes any open modal
+  □ Focus trapped inside modal while open
+```
+
+---
+
+## 🟦 PAGE 3 — Inventory
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/inventory
+  Called by:   loadInventory()
+  Populates:   Summary strip + table
+  Check:
+    □ Summary Card 1: total count correct
+    □ Summary Card 2: lowStock count correct
+    □ Summary Card 3: outOfStock count correct
+    □ Card 3 border turns red if outOfStock > 0
+    □ Table sorted: Out of Stock first
+        then Low then Healthy
+    □ Status badge correct per stock levels:
+        current = 0         → "Out of Stock" red
+        current < reorder   → "Low Stock" amber
+        current >= reorder  → "Healthy" green
+    □ Last Updated shows relative time
+    □ Skeleton rows removed after load
+    □ Card 2 click filters table to Low Stock
+    □ Card 3 click filters table to Out of Stock
+
+□ PUT /api/admin/inventory/:food_id
+  Called by:   saveStock()
+  Triggered:   Pencil icon → input → Save button
+  Check:
+    □ Pencil click converts qty to input
+    □ Input pre-filled with current stock
+    □ Save + Cancel buttons appear
+    □ Pencil icon hides during edit mode
+    □ Validation: empty input → shake + toast
+    □ Validation: negative number → shake + toast
+    □ Validation: decimal → shake + toast
+    □ Cancel reverts to display mode unchanged
+    □ Save: spinner on button during call
+    □ On 200: qty cell reverts to display mode
+    □ On 200: status badge recalculates in-place
+    □ On 200: row flashes green then fades
+    □ On 200: summary strip recounts from memory
+        (no extra API call)
+    □ On 200: success toast appears
+    □ On error: error toast + revert to original
+
+INTEGRATION RULES FOR PAGE 3:
+  □ inventoryData[] is master state
+  □ Summary strip recount from memory only
+      never re-fetch from API after update
+  □ Inline edit of one row must not
+      affect other rows in edit mode
+  □ Search + status filter are client-side
+      (no API call on filter)
+  □ Results count updates as filters change
+```
+
+---
+
+## 🟦 PAGE 4 — Orders
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/orders
+  Called by:   loadOrders('all')
+  Populates:   Summary strip + table
+  Check:
+    □ Summary counts all 4 statuses
+    □ Tab badge pills show correct counts
+    □ Table renders all orders
+    □ Order ID formatted as #ORD-00001
+    □ Customer avatar shows correct initials
+    □ Items summary: "Item1, Item2 +N more"
+    □ Total shows ₹ formatted
+    □ Status badge correct color per status
+    □ Date shows formatted + relative below
+    □ Skeleton rows removed after load
+
+□ GET /api/admin/orders?status=pending
+  Called by:   loadOrders('pending')
+  Triggered:   Pending tab click
+  Check:
+    □ Only pending orders in table
+    □ Empty state if no pending orders
+    □ Loading skeleton during fetch
+    □ Summary counts still show all statuses
+        (not filtered)
+
+□ GET /api/admin/orders?status=completed
+  Called by:   loadOrders('completed')
+  Triggered:   Completed tab click
+  Check: (same as above for completed)
+
+□ GET /api/admin/orders?status=cancelled
+  Called by:   loadOrders('cancelled')
+  Triggered:   Cancelled tab click
+  Check: (same as above for cancelled)
+
+□ PUT /api/admin/orders/:id/status
+  Called by:   confirmStatusChange()
+  Triggered:   Status dropdown → option → modal
+  Check:
+    □ Dropdown shows correct options per status:
+        Pending   → Mark Completed, Mark Cancelled
+        Completed → "Finalized" greyed out
+        Cancelled → "Cancelled" greyed out
+    □ Selecting option opens confirmation modal
+    □ Modal shows order number in accent color
+    □ Confirm button color matches target status
+    □ Confirm button shows spinner during call
+    □ Confirm button disabled during call
+    □ On 200: modal closes
+    □ On 200: status badge updates in-place
+    □ On 200: dropdown button label updates
+    □ On 200: summary strip counts update
+    □ On 200: tab badge counts update
+    □ On 200: if tab-filtered, row fades out
+    □ On 200: success toast with order number
+    □ On 422 (invalid transition): error toast
+    □ Dropdown closes on Escape key
+    □ Dropdown closes on outside click
+
+EXPANDABLE ROW:
+  □ Chevron click expands row smoothly
+  □ Only one row expanded at a time
+  □ Expanding new row collapses previous
+  □ Expanded row shows item sub-table
+  □ Sub-table shows: Item, Qty, Price, Subtotal
+  □ Health flag warning shows if any item flagged
+  □ Order metadata shows on right column
+  □ Shortcut buttons in expanded row work:
+      "Mark as Completed" → same flow as dropdown
+      "Cancel Order" → same flow as dropdown
+  □ "Print Receipt" opens browser print
+
+INTEGRATION RULES FOR PAGE 4:
+  □ Tab click = new server fetch (not client filter)
+  □ Date/search filter = client-side only
+  □ ordersData[] holds current tab's orders
+  □ Status change updates 4 UI elements at once:
+      badge + dropdown + summary + tab counts
+  □ expandedOrderId tracks which row is open
+  □ Table re-render preserves expanded row state
+```
+
+---
+
+## 🟦 PAGE 5 — Users
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/users
+  Called by:   loadUsers()
+  Populates:   Summary strip + table
+  Check:
+    □ Summary Card 1: total USER count
+    □ Summary Card 2: active USER count
+    □ Summary Card 3: deactivated count
+    □ Summary Card 4: high risk count
+    □ Card 4 border amber if highRisk > 0
+    □ Table shows only role='USER' accounts
+    □ Avatar circle shows correct initials
+    □ Role badge correct color per role
+    □ Risk badge correct color per level
+    □ Risk score shown next to badge
+    □ Last Active shows relative time
+    □ Deactivated users:
+        Name has line-through style
+        Row opacity 0.65
+        Status badge red
+    □ RBAC visibility applied before render:
+        ANALYST → read-only banner shown
+                  all action buttons hidden
+        MANAGER → role-change button hidden
+        SUPER_ADMIN → all buttons visible
+
+□ PUT /api/admin/users/:id (role change)
+  Called by:   confirmRoleChange()
+  Triggered:   Role icon → role modal → Update
+  Check:
+    □ Only visible to SUPER_ADMIN
+    □ 4 role cards render correctly
+    □ Current role highlighted
+    □ Cannot re-select current role
+    □ SUPER_ADMIN warning box appears when
+        SUPER_ADMIN card selected
+    □ "Update Role" disabled if same role
+    □ Spinner during API call
+    □ On 200: modal closes
+    □ On 200: role badge updates in-place
+    □ On 200: success toast with new role
+    □ If admin changed OWN role:
+        Special toast + page reload after 2s
+    □ On 403: error toast
+        "Only SUPER_ADMIN can change roles"
+    □ On 422 last SUPER_ADMIN: error toast
+
+□ PUT /api/admin/users/:id (status change)
+  Called by:   confirmDeactivation()
+  Triggered:   Deactivate/Reactivate button
+  Check:
+    □ Inline popover appears near button
+    □ Popover shows user name in warning
+    □ Cancel link closes popover, no action
+    □ Confirm button triggers API call
+    □ Only one popover open at a time
+    □ Popover closes on Escape + outside click
+    □ On 200 deactivate:
+        Status badge → red "Deactivated"
+        Name gets line-through style
+        Row opacity → 0.65
+        Button changes to ✅ Reactivate
+        Summary strip counts update
+    □ On 200 reactivate: reverse all above
+    □ On 422 (deactivating self): error toast
+    □ On 422 (last SUPER_ADMIN): error toast
+
+HEALTH MODAL:
+  □ 👁️ button opens health modal
+  □ User name, email, avatar in header
+  □ SVG risk ring animates on open
+  □ Ring color matches risk level
+  □ Conditions show as colored tags
+  □ "None reported" if no conditions
+  □ Dietary preferences show as tags
+  □ Order stats: Total, Spent, Avg Value
+  □ AI insights: top category, compliance %
+  □ Compliance progress bar renders
+  □ "View Order History →" link works
+
+INTEGRATION RULES FOR PAGE 5:
+  □ JWT decoded on load for currentAdminRole
+  □ RBAC visibility applied BEFORE any render
+  □ Role change and status change are
+      separate API calls — never combined
+  □ Last SUPER_ADMIN protection enforced
+      both client AND server side
+  □ usersData[] is master state array
+  □ All updates surgical — no full reload
+```
+
+---
+
+## 🟦 PAGE 6 — Analytics
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/analytics/summary
+  Called by:   loadKpiSummary()
+  Query:       ?from=&to=
+  Check:
+    □ All 4 KPI cards populate
+    □ Change badges show + or - correctly
+    □ Green ↑ if positive, red ↓ if negative
+    □ Re-fetches when Apply button clicked
+
+□ GET /api/admin/analytics/sales
+  Called by:   loadSalesChart()
+  Query:       ?from=&to=&chart_period=
+  Check:
+    □ Line chart renders Revenue + Orders
+    □ Gradient fill on Revenue line
+    □ Dual Y-axes present
+    □ Internal period pills work independently
+    □ Changing global date + Apply
+        does NOT reset internal period pill
+
+□ GET /api/admin/analytics/revenue-by-category
+  Called by:   loadRevenuePieChart()
+  Check:
+    □ All 5 categories always present
+    □ Even if value is 0 for a category
+    □ Center text shows total revenue
+    □ Legend shows value + percentage
+
+□ GET /api/admin/analytics/popular-foods
+  Called by:   loadPopularFoodsChart()
+  Check:
+    □ Horizontal bar chart renders
+    □ Sorted descending by order count
+    □ Max 10 items shown
+    □ Value labels at end of each bar
+    □ Tooltip shows name + count + revenue
+
+□ GET /api/admin/analytics/category-heatmap
+  Called by:   loadCategoryHeatmap()
+  Check:
+    □ CSS grid renders (NOT Chart.js)
+    □ 7 columns (Mon–Sun)
+    □ 5 rows (all categories)
+    □ Cell color intensity matches volume
+    □ Cell shows order count number
+    □ Tooltip on hover shows details
+
+□ GET /api/admin/analytics/disease-distribution
+  Called by:   loadDiseaseChart()
+  Check:
+    □ Doughnut renders top 6 conditions
+    □ Center shows total user count
+    □ Legend shows condition + count + %
+    □ No date filter — always current data
+
+□ GET /api/admin/analytics/risk-trends
+  Called by:   loadRiskTrendChart()
+  Check:
+    □ 3 overlaid lines (not stacked)
+    □ Low → green, Moderate → amber,
+        High → red
+    □ Light area fill per line
+    □ Empty arrays handled gracefully
+    □ No crash if no data in range
+
+□ GET /api/admin/analytics/peak-hours
+  Called by:   loadPeakHoursChart()
+  Check:
+    □ 24 bars always present (0–23)
+    □ Peak hour bar: accent cyan + glow
+    □ "Peak time: Xhour" text below chart
+    □ Hours shown in 12hr format on axis
+
+□ GET /api/admin/analytics/top-spenders
+  Called by:   loadTopSpenders()
+  Check:
+    □ Ranked list renders (5 items)
+    □ Gold/silver/bronze for top 3
+    □ Avatar initials show correctly
+    □ "View User →" link navigates correctly
+
+□ GET /api/admin/analytics/ai-impact
+  Called by:   loadAiStats()
+  Check:
+    □ Recommendations Served count shows
+    □ Acceptance Rate progress bar animates
+    □ Health Improvement progress bar animates
+    □ "Most recommended item" name shows
+
+GLOBAL DATE FILTER:
+  □ Default period: 30 days
+  □ Preset pills update dateFrom + dateTo
+  □ "Custom" reveals From/To date inputs
+  □ Apply button re-fetches ALL 10 sections
+  □ All 10 calls fired in Promise.all
+  □ "Showing data from X to Y" updates
+  □ disease-distribution ignores date filter
+      (uses current data always)
+  □ Export All button downloads analytics
+
+INTEGRATION RULES FOR PAGE 6:
+  □ All chart instances stored in state
+  □ destroyChart() before every re-render
+  □ Chart.js global defaults set once
+      before any chart renders
+  □ Center text plugin registered globally
+  □ Heatmap is pure CSS grid
+  □ buildDateParams() used by every endpoint
+```
+
+---
+
+## 🟦 PAGE 7 — AI Monitoring
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/ai/status
+  Called by:   loadAiStatus() + pollStatus()
+  Check:
+    □ Status bar shows correct state:
+        "Active"     → green pulsing dot
+        "Degraded"   → amber static dot
+        "Retraining" → cyan spinning ring
+    □ Version number shows
+    □ Last trained relative time shows
+    □ Total predictions count shows
+    □ 4 metric cards populate:
+        Accuracy, Precision, Recall, F1
+    □ Progress bars animate from 0 on load
+    □ Accuracy bar color:
+        > 85 → green
+        60-85 → amber
+        < 60  → red
+    □ Polling starts after retrain initiated
+    □ pollStatus() calls every 10 seconds
+    □ When status returns 'active':
+        polling stops
+        metrics refresh
+        success toast appears
+
+□ GET /api/admin/ai/features
+  Called by:   loadFeatureImportanceChart()
+  Check:
+    □ Horizontal bar chart renders
+    □ 8 features maximum
+    □ Sorted descending by importance
+    □ Value % labels at end of bars
+    □ Default features shown if DB empty
+
+□ GET /api/admin/ai/accuracy-history
+  Called by:   loadAccuracyTrendChart()
+  Check:
+    □ Line chart renders training dates
+    □ Smooth cyan line
+    □ Horizontal dashed reference line at 85%
+    □ "Target Accuracy" label on line
+    □ Clicking point shows training details
+    □ Empty arrays handled (empty chart)
+
+□ GET /api/admin/ai/logs
+  Called by:   loadRecommendationLogs()
+  Query:       ?page=&limit=20&risk=&action=&period=&search=
+  Check:
+    □ Table renders with all columns
+    □ Confidence pill color correct:
+        > 85 → green
+        60-85 → amber
+        < 60  → red
+    □ User action badge correct:
+        Accepted    → green
+        Rejected    → red
+        No Response → muted grey
+    □ Reason text truncated at 40 chars
+    □ Full reason shows on hover (tooltip)
+    □ Pagination controls render
+    □ "Page X of Y" indicator correct
+    □ Previous/Next buttons work
+    □ Page number input + Enter works
+    □ Filters re-fetch from page 1
+    □ Empty state message correct
+
+□ GET /api/admin/ai/training-history
+  Called by:   loadTrainingHistory()
+  Check:
+    □ Table renders all history rows
+    □ Status badge animated for in_progress
+    □ Duration formatted as "Xm Ys"
+    □ Accuracy delta shown
+    □ Triggered by name shows
+
+□ POST /api/admin/ai/retrain
+  Called by:   confirmRetrain()
+  Triggered:   "Retrain Model" → modal → Confirm
+  Check:
+    □ Button disabled if already retraining
+    □ Modal shows warning about peak hours
+    □ Confirm button shows "Initiating..." spinner
+    □ On 202: modal closes
+    □ On 202: status bar → "Retraining" state
+    □ On 202: spinning ring animation starts
+    □ Polling begins every 10 seconds
+    □ On 409 (already retraining): error toast
+    □ Only SUPER_ADMIN sees retrain button
+    □ MANAGER/ANALYST get 403 if they try
+
+INTEGRATION RULES FOR PAGE 7:
+  □ pollingInterval stored in state
+  □ clearInterval on stopPolling()
+  □ pollStatus() checks status === 'active'
+      to know when to stop
+  □ currentFilters{} + currentPage tracked
+  □ Filter change resets to page 1
+  □ Both featureChart + accuracyChart
+      stored and destroyed before re-render
+```
+
+---
+
+## 🟦 PAGE 8 — Reports
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/export/sales/preview
+  Called by:   previewReport('sales')
+  Check:
+    □ Config panel expands on card button click
+    □ Other panels collapse when one opens
+    □ Date preset buttons work per panel
+    □ Checkboxes show/hide sub-options
+    □ Preview panel hidden by default
+    □ Preview button shows loading state
+    □ On 200: preview panel slides open
+    □ "Showing first 10 rows. Full report: X"
+    □ Preview table builds from columns[] + rows[]
+    □ "Total rows: X" shows below table
+    □ "Date range: X to Y" shows
+    □ "Generated at: timestamp" shows
+
+□ GET /api/admin/export/sales?format=csv
+  Called by:   exportReport('sales', 'csv')
+  Check:
+    □ Export button shows "Preparing export..."
+    □ Button disabled during download
+    □ Browser download dialog appears
+    □ File named: "sales-report-YYYY-MM-DD.csv"
+    □ CSV opens correctly in Excel/Sheets
+    □ On complete: "✓ Downloaded" for 3 seconds
+    □ Button resets after 3 seconds
+    □ Export logged in Recent Exports table
+    □ "Download Again" on logged entry works
+
+□ GET /api/admin/export/sales?format=pdf
+  Called by:   exportReport('sales', 'pdf')
+  Check:
+    □ Same button flow as CSV
+    □ File named: "sales-report-YYYY-MM-DD.pdf"
+    □ PDF opens with title + table + date
+
+□ GET /api/admin/export/health/preview
+□ GET /api/admin/export/health?format=csv
+□ GET /api/admin/export/health?format=pdf
+  Check: (same flow as sales)
+    □ Anonymize toggle: names/emails masked
+    □ Risk data preserved when anonymized
+
+□ GET /api/admin/export/inventory/preview
+□ GET /api/admin/export/inventory
+  Check: (CSV only — no PDF option)
+    □ Format toggle hidden for inventory
+    □ Download is always .csv
+
+RECENT EXPORTS LOG:
+  □ Each export appended to sessionStorage
+  □ Table shows last 10 exports
+  □ Cleared when tab closes
+  □ "Download Again" re-triggers same params
+  □ Empty state: "No exports yet this session"
+
+INTEGRATION RULES FOR PAGE 8:
+  □ getReportConfig() reads all panel inputs
+  □ triggerDownload() uses createObjectURL
+  □ URL.revokeObjectURL() called after 100ms
+  □ Double-submit prevented (exportInProgress flag)
+  □ validateConfig() checks required fields
+      before any API call is made
+  □ Preview and Export use same config params
+```
+
+---
+
+## 🟦 PAGE 9 — Audit Logs
+
+```
+ENDPOINTS TO VERIFY:
+═══════════════════════════════════════
+
+□ GET /api/admin/audit/summary
+  Called by:   loadSummary()
+  Check:
+    □ Card 1: total actions all time
+    □ Card 2: today's action count
+    □ Card 3: unique admins active today
+    □ Card 4: "X minutes ago" relative time
+    □ Card 4 auto-refreshes every 30 seconds
+    □ Skeletons removed after load
+
+□ GET /api/admin/audit/admins
+  Called by:   loadAdminList()
+  Check:
+    □ Admin filter dropdown populated
+    □ Each option shows admin name
+    □ "All Admins" as default option
+
+□ GET /api/admin/audit
+  Called by:   loadLogs() + debouncedFetch()
+  Check:
+    □ Table renders with all columns
+    □ Timestamp formatted + relative below
+    □ Admin avatar shows initials
+    □ Admin role badge shows below name
+    □ Action type badge correct color:
+        CREATE        → green
+        UPDATE        → cyan
+        DELETE        → red
+        LOGIN         → purple
+        LOGOUT        → muted
+        EXPORT        → blue
+        RETRAIN       → amber
+        STATUS_CHANGE → orange
+    □ Target table in monospace pill
+    □ Summary text shows correctly
+    □ IP address in monospace font
+    □ IP click adds to active filter pills
+    □ Pagination controls render correctly
+
+SERVER-SIDE FILTERS:
+  □ Search input (400ms debounce):
+      Filters across summary, action,
+      target table, IP, payload text
+  □ Admin dropdown: filters by admin_id
+  □ Action type dropdown: filters by type
+  □ Target table dropdown: filters by table
+  □ Date From input: filters from date
+  □ Date To input: filters to end of day
+  □ IP input: partial match filter
+  □ Every filter change = new API call
+      (never client-side on this page)
+  □ Debounce cancels previous pending call
+
+ACTIVE FILTER PILLS:
+  □ Pill appears for each active filter
+  □ Format: "admin: John Doe ✕"
+  □ ✕ click removes filter + re-fetches
+  □ "Clear All Filters" resets everything
+
+EXPANDABLE PAYLOAD ROW:
+  □ Chevron click expands row
+  □ Only one row expanded at a time
+  □ JSON syntax highlighting:
+      Keys      → cyan
+      Strings   → green
+      Numbers   → amber
+      Booleans  → purple
+      Null      → muted red
+  □ Line numbers on left side
+  □ "Copy JSON" button works
+  □ Micro-toast "JSON Copied!" appears
+  □ Max height 320px with scroll
+  □ "No payload data" message if null
+  □ For UPDATE actions:
+      Diff view appears below JSON
+      Changed fields → amber background
+      Added fields   → green background
+      Removed fields → red strikethrough
+
+PAGINATION:
+  □ "Showing X–Y of Z results" correct
+  □ First/Prev/Next/Last buttons work
+  □ Max 5 page numbers shown
+  □ Jump to page input + Go button works
+  □ Per-page selector: 20/50/100
+  □ Changing per-page resets to page 1
+  □ Auto-refresh toggle works:
+      OFF by default
+      When ON: re-fetches page 1 every 30s
+      Shows "Last refreshed: Xs ago"
+      Expanded row state preserved on refresh
+
+INTEGRATION RULES FOR PAGE 9:
+  □ ALL filtering is server-side always
+  □ debounceTimer clears on every keystroke
+  □ currentFilters{} tracks all active filters
+  □ renderFilterPills() called after every change
+  □ expandedLogId tracks which row is open
+  □ Auto-refresh must not reset expandedLogId
+  □ syntaxHighlight() built from scratch (regex)
+      no external library
+  □ renderDiffView() only for action_type=UPDATE
+```
+
+---
+
+## 🔒 GLOBAL INTEGRATION RULES (ALL 9 PAGES)
+
+```
+AUTH LAYER:
+  □ authGuard() runs on every page load
+  □ No admin_token → redirect to login
+  □ JWT decoded for admin name + role in sidebar
+  □ Every API call sends Authorization: Bearer
+  □ 401 from any endpoint → redirect to login
+  □ 403 from any endpoint → show error toast
+      do not redirect
+
+SIDEBAR (ALL PAGES):
+  □ Active nav item highlighted per page
+  □ Admin name + role shows in footer badge
+  □ Avatar initial from JWT payload name
+  □ Nav links correct for all 9 pages
+
+TOPBAR (ALL PAGES):
+  □ Live clock updates every second
+  □ Notification bell shows dot if alerts exist
+  □ Sign Out clears token + redirects
+  □ Page title correct per page
+
+LOADING STATES (ALL PAGES):
+  □ Shimmer skeleton shown before data loads
+  □ Skeleton removed immediately on data load
+  □ Failed API call → error toast
+      skeleton replaced with error state
+
+TOAST NOTIFICATIONS (ALL PAGES):
+  □ Success: green ✅ bottom-right
+  □ Error:   red ❌ bottom-right
+  □ Warn:    amber ⚠️ bottom-right
+  □ Auto-removes after 3.5 seconds
+  □ Multiple toasts stack vertically
+  □ Never replaces page content
+
+RBAC (ALL PAGES):
+  □ ANALYST: can view, cannot write
+  □ MANAGER: can view + write (no role changes)
+  □ SUPER_ADMIN: full access everywhere
+  □ Role detected from JWT on page load
+  □ UI elements hidden/shown before render
+  □ Backend also enforces independently
+      (dual enforcement — UI + API)
+
+ERROR HANDLING (ALL PAGES):
+  □ Network error → "Connection failed" toast
+  □ 400 → show validation errors from response
+  □ 401 → redirect to login
+  □ 403 → "Insufficient permissions" toast
+  □ 404 → "Not found" toast
+  □ 409 → show conflict message toast
+  □ 422 → show business logic error toast
+  □ 500 → "Server error. Try again." toast
+  □ No page ever shows a blank white screen
+      Always show error state with message
+
+ADMIN CHANGES REFLECT SYSTEM-WIDE:
+  □ Food deleted → removed from recommendations
+  □ Stock updated → user menu reflects change
+  □ Food marked unavailable → excluded from AI
+  □ User deactivated → cannot login
+  □ Role changed → permissions update immediately
+```
+
+---
+
+## ✅ FINAL SIGN-OFF CHECKLIST
+
+```
+Before calling the system production-ready:
+
+BACKEND:
+  □ All 40+ endpoints return correct HTTP codes
+  □ All endpoints return JSON (never HTML)
+  □ All write endpoints write audit logs
+  □ JWT required on all /api/admin/* routes
+  □ CORS locked to frontend origin only
+  □ Rate limiting active on write endpoints
+  □ Background retrain thread tested
+  □ CSV + PDF downloads verified in browser
+  □ Database indexes created (see Day 2)
+  □ .env file never committed to git
+
+FRONTEND:
+  □ All 9 pages connect to real API (no hardcode)
+  □ All pages have loading skeletons
+  □ All pages have empty states
+  □ All pages have error states
+  □ Auth guard on every page
+  □ RBAC visibility on every page
+  □ All chart instances properly destroyed
+  □ All intervals cleared on beforeunload
+  □ No console errors in production
+
+INTEGRATION:
+  □ Admin stock update → user sees change
+  □ Admin food delete → recommendation excludes
+  □ Admin user deactivate → user loses access
+  □ Retrain completes → new accuracy in status
+  □ Every admin action → row in audit logs
+  □ Audit logs capture correct IP address
+  □ Export downloads work in all browsers:
+      Chrome ✅ Firefox ✅ Safari ✅ Edge ✅
+
+SECURITY:
+  □ No passwords in any API response
+  □ No stack traces in any error response
+  □ No wildcard CORS (*) in production
+  □ SQL injection impossible (parameterized only)
+  □ JWT secret is strong random string
+  □ Admin tokens expire in 4 hours (production)
+```
